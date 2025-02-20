@@ -7,10 +7,11 @@ class User(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     email = Column(String, unique=True, index=True, nullable=False)
-    hashed_password = Column(String, nullable=False)
+    password = Column(String, nullable=False)
     name = Column(String, nullable=False)
     role = Column(String, nullable=False)
     created_at = Column(DateTime, nullable=False)
+    updated_at = Column(DateTime, nullable=False)
     direction_id = Column(Integer, ForeignKey('directions.id'), nullable=False)
     language_id = Column(Integer, ForeignKey('languages.id'), nullable=False)
 
@@ -26,6 +27,8 @@ class Direction(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String, nullable=False)
+    users = relationship("User", back_populates="direction")
+
 
 
 class Language(Base):
@@ -33,4 +36,5 @@ class Language(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String, nullable=False)
+    users = relationship("User", back_populates="language")
 
