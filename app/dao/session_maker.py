@@ -21,7 +21,8 @@ class DatabaseSessionManager:
             try:
                 yield session
             except Exception as e:
-                logger.error(f"Ошибка при создании сессии базы данных: {e}")
+                await session.rollback()
+                logger.error(f"Session rollback because of exception: {e}")
                 raise
             finally:
                 await session.close()
@@ -30,11 +31,12 @@ class DatabaseSessionManager:
     async def transaction(self, session: AsyncSession) -> AsyncGenerator[None, None]:
 
         try:
+            await session.begin()
             yield
             await session.commit()
         except Exception as e:
             await session.rollback()
-            logger.exception(f"Ошибка транзакции: {e}")
+            logger.error(f"Transaction rollback because of exception: {e}")
             raise
 
     async def get_session(self) -> AsyncGenerator[AsyncSession, None]:
@@ -53,23 +55,15 @@ class DatabaseSessionManager:
         def decorator(method):
             @wraps(method)
             async def wrapper(*args, **kwargs):
-                async with self.session_maker() as session:
-                    try:
-                        if isolation_level:
-                            await session.execute(text(f"SET TRANSACTION ISOLATION LEVEL {isolation_level}"))
+                async with self.create_session() as session:
+                    if isolation_level:
+                        await session.execute(text(f"SET TRANSACTION ISOLATION LEVEL {isolation_level}"))
 
-                        result = await method(*args, session=session, **kwargs)
-
-                        if commit:
-                            await session.commit()
-
-                        return result
-                    except Exception as e:
-                        await session.rollback()
-                        logger.error(f"Ошибка при выполнении транзакции: {e}")
-                        raise
-                    finally:
-                        await session.close()
+                    if commit:
+                        async with self.transaction(session):
+                            return await method(*args, session=session, **kwargs)
+                    else:
+                        return await method(*args, session=session, **kwargs)
 
             return wrapper
 
@@ -85,9 +79,14 @@ class DatabaseSessionManager:
 
 
 session_manager = DatabaseSessionManager(async_session_maker)
-
 SessionDep = session_manager.session_dependency
 TransactionSessionDep = session_manager.transaction_session_dependency
+
+# Функция для получения сессии для инициализации данных
+async def get_async_session():
+    async with session_manager.create_session() as session:
+        async with session_manager.transaction(session):
+            yield session
 
 # Пример использования декоратора
 # @session_manager.connection(isolation_level="SERIALIZABLE", commit=True)
