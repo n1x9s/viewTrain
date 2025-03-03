@@ -49,8 +49,6 @@ class SUserRegister(UserBase):
 
 class SUserAddDB(UserBase):
     password: str = Field(min_length=5, description="Hashed password")
-    direction_ids: List[int] = Field(description="List of direction IDs")
-    language_ids: List[int] = Field(description="List of language IDs")
 
 
 class SUserAuth(EmailModel):

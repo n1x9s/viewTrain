@@ -41,14 +41,19 @@ async def register_user(user_data: SUserRegister, session: AsyncSession = Transa
             detail="One or more selected languages do not exist"
         )
     
-    # Создаем пользователя
-    user_data_dict = user_data.model_dump()
-    del user_data_dict['confirm_password']
-    new_user = await UsersDAO.add(session=session, values=SUserAddDB(**user_data_dict))
+    # Создаем пользователя только с основными полями
+    user_data_dict = {
+        "email": user_data.email,
+        "name": user_data.name,
+        "password": user_data.password,
+        "directions": directions,
+        "languages": languages
+    }
     
-    # Добавляем связи с направлениями и языками
-    new_user.directions = directions
-    new_user.languages = languages
+    # Создаем нового пользователя
+    new_user = User(**user_data_dict)
+    session.add(new_user)
+    await session.commit()
     
     return {'message': f'Registration is successful!'}
 
