@@ -2,12 +2,30 @@ from contextlib import asynccontextmanager
 from typing import Callable, Optional, AsyncGenerator
 from fastapi import Depends
 from loguru import logger
-from sqlalchemy.ext.asyncio import async_sessionmaker, AsyncSession
+from sqlalchemy.ext.asyncio import async_sessionmaker, AsyncSession, create_async_engine
 from sqlalchemy import text
 from functools import wraps
+from sqlalchemy.orm import DeclarativeBase
+from app.config import settings
+import logging
 
-from app.dao.database import async_session_maker
+logger = logging.getLogger(__name__)
 
+# Создаем асинхронный движок
+engine = create_async_engine(
+    settings.DATABASE_URL,
+    echo=False,
+    pool_pre_ping=True
+)
+
+# Создаем фабрику сессий
+async_session_maker = async_sessionmaker(
+    engine,
+    class_=AsyncSession,
+    expire_on_commit=False,
+    autocommit=False,
+    autoflush=False
+)
 
 class DatabaseSessionManager:
 
@@ -67,8 +85,6 @@ class DatabaseSessionManager:
 
             return wrapper
 
-        return decorator
-
     @property
     def session_dependency(self) -> Callable:
         return Depends(self.get_session)
@@ -83,10 +99,16 @@ SessionDep = session_manager.session_dependency
 TransactionSessionDep = session_manager.transaction_session_dependency
 
 # Функция для получения сессии для инициализации данных
-async def get_async_session():
-    async with session_manager.create_session() as session:
-        async with session_manager.transaction(session):
+async def get_async_session() -> AsyncGenerator[AsyncSession, None]:
+    async with async_session_maker() as session:
+        try:
             yield session
+        except Exception as e:
+            logger.error(f"Session rollback because of exception: {e}")
+            await session.rollback()
+            raise
+        finally:
+            await session.close()
 
 # Пример использования декоратора
 # @session_manager.connection(isolation_level="SERIALIZABLE", commit=True)

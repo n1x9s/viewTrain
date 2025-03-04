@@ -11,13 +11,22 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.responses import HTMLResponse
 import asyncio
+import logging
 
 from app.auth.router import router as router_auth
+from app.directions.router import router as router_directions
+from app.languages.router import router as router_languages
 from fastapi.staticfiles import StaticFiles
 from app.auth.init_data import init_data
 from app.dao.session_maker import get_async_session
 
 app = FastAPI()
+
+# Настройка логирования
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
 
 # Добавляем middleware для CORS
 app.add_middleware(
@@ -45,3 +54,5 @@ async def startup_event():
 
 
 app.include_router(router_auth)
+app.include_router(router_directions)
+app.include_router(router_languages)

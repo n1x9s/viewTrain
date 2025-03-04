@@ -12,12 +12,13 @@ class Settings(BaseSettings):
     SECRET_KEY: str
     ALGORITHM: str
 
+
     @property
-    def DB_URL(self) -> str:
+    def DATABASE_URL(self) -> str:
         return f'postgresql+asyncpg://{self.DB_USER}:{self.DB_PASSWORD}@{self.DB_HOST}:{self.DB_PORT}/{self.DB_NAME}'
 
     class Config:
         env_file = '.env'
 
 settings = Settings()
-database_url = settings.DB_URL
+database_url = settings.DATABASE_URL

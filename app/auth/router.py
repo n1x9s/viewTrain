@@ -1,70 +1,95 @@
 from typing import List
+import logging
 from fastapi import APIRouter, Response, Depends, HTTPException, status
-from app.auth.dependencies import get_current_user #, get_current_admin_user
-from app.auth.models import User, Direction, Language
+from app.auth.dependencies import get_current_user
+from app.auth.models import User
 from app.exceptions import UserAlreadyExistsException, IncorrectEmailOrPasswordException
 from app.auth.auth import authenticate_user, create_access_token
 from app.auth.dao import UsersDAO, DirectionsDAO, LanguagesDAO
-from app.auth.schemas import SUserRegister, SUserAuth, EmailModel, SUserAddDB, SUserInfo, DirectionSchema, LanguageSchema, DirectionCreate, LanguageCreate
+from app.auth.schemas import SUserRegister, SUserAuth, EmailModel, SUserAddDB, SUserInfo, SUserUpdate, UserMeResponse
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select
+from sqlalchemy.orm import selectinload
 from pydantic import BaseModel
 
 from app.dao.session_maker import TransactionSessionDep, SessionDep
 
 router = APIRouter(prefix='/auth', tags=['Auth'])
+logger = logging.getLogger(__name__)
 
 
-class IdModel(BaseModel):
-    id: int
+class UserUpdateData(BaseModel):
+    name: str
+    email: str
+    direction_ids: List[int]
+    language_ids: List[int]
 
 
-@router.post("/register/")
-async def register_user(user_data: SUserRegister, session: AsyncSession = TransactionSessionDep) -> dict:
-    # Проверяем, существует ли пользователь с таким email
-    user = await UsersDAO.find_one_or_none(session=session, filters=EmailModel(email=user_data.email))
-    if user:
-        raise UserAlreadyExistsException
+@router.post("/register")
+async def register_user(user_data: SUserRegister, session: AsyncSession = SessionDep):
+    logger.info(f"Registering new user with email: {user_data.email}")
     
-    # Проверяем, существуют ли выбранные направления
-    directions = await DirectionsDAO.find_by_ids(session=session, ids=user_data.direction_ids)
-    if len(directions) != len(user_data.direction_ids):
+    # Проверяем, существует ли пользователь
+    existing_user = await UsersDAO.find_one_or_none(
+        session=session,
+        filters=EmailModel(email=user_data.email)
+    )
+    if existing_user:
+        logger.warning(f"User with email {user_data.email} already exists")
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="One or more selected directions do not exist"
+            status_code=400,
+            detail="Email already registered"
         )
-    
-    # Проверяем, существуют ли выбранные языки
-    languages = await LanguagesDAO.find_by_ids(session=session, ids=user_data.language_ids)
-    if len(languages) != len(user_data.language_ids):
+
+    try:
+        # Создаем нового пользователя
+        new_user = User(
+            email=user_data.email,
+            name=user_data.name
+        )
+        logger.info(f"Setting password for new user: {user_data.email}")
+        new_user.set_password(user_data.password)
+        logger.info("Password has been set")
+
+        # Получаем объекты направлений
+        directions = await DirectionsDAO.find_by_ids(session=session, ids=user_data.direction_ids)
+        logger.info(f"Found directions: {directions}")
+
+        # Получаем объекты языков
+        languages = await LanguagesDAO.find_by_ids(session=session, ids=user_data.language_ids)
+        logger.info(f"Found languages: {languages}")
+
+        # Добавляем связи
+        new_user.directions.extend(directions)
+        new_user.languages.extend(languages)
+
+        # Сохраняем пользователя
+        await UsersDAO.add(session, new_user)
+        await session.commit()
+        
+        logger.info(f"User successfully registered: {new_user}")
+        return {"message": "User registered successfully"}
+
+    except Exception as e:
+        logger.error(f"Error during user registration: {e}", exc_info=True)
+        await session.rollback()
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="One or more selected languages do not exist"
+            status_code=500,
+            detail="Error during registration"
         )
-    
-    # Создаем пользователя только с основными полями
-    user_data_dict = {
-        "email": user_data.email,
-        "name": user_data.name,
-        "password": user_data.password,
-        "directions": directions,
-        "languages": languages
-    }
-    
-    # Создаем нового пользователя
-    new_user = User(**user_data_dict)
-    session.add(new_user)
-    await session.commit()
-    
-    return {'message': f'Registration is successful!'}
 
 
 @router.post("/login/")
 async def auth_user(response: Response, user_data: SUserAuth, session: AsyncSession = SessionDep):
+    logger.info(f"Login attempt for user: {user_data.email}")
     check = await authenticate_user(session=session, email=user_data.email, password=user_data.password)
+    logger.info(f"Authentication result: {check}")
     if check is None:
+        logger.warning(f"Authentication failed for user: {user_data.email}")
         raise IncorrectEmailOrPasswordException
     access_token = create_access_token({"sub": str(check.id)})
     response.set_cookie(key="users_access_token", value=access_token, httponly=True)
+    logger.info(f"Successfully authenticated user: {user_data.email}")
     return {'ok': True, 'access_token': access_token, 'message': 'Authorization is successful!'}
 
 
@@ -75,105 +100,85 @@ async def logout_user(response: Response):
 
 
 @router.get("/me/")
-async def get_me(user_data: User = Depends(get_current_user)) -> SUserInfo:
-    return SUserInfo.model_validate(user_data)
-
-
-@router.get("/directions/", response_model=List[DirectionSchema])
-async def get_directions(session: AsyncSession = SessionDep):
-    directions = await DirectionsDAO.find_all(session=session, filters=None)
-    return directions
-
-
-@router.post("/directions/", response_model=DirectionSchema, status_code=status.HTTP_201_CREATED)
-async def create_direction(
-    direction_data: DirectionCreate, 
-    session: AsyncSession = TransactionSessionDep,
+async def get_me(
+    session: AsyncSession = SessionDep,
     current_user: User = Depends(get_current_user)
-):
-    # Проверяем, существует ли уже такое направление
-    existing = await DirectionsDAO.find_one_or_none(
-        session=session, 
-        filters=DirectionCreate(name=direction_data.name)
+) -> UserMeResponse:
+    # Загружаем пользователя со всеми связями
+    stmt = select(User).where(User.id == current_user.id).options(
+        selectinload(User.directions),
+        selectinload(User.languages)
     )
-    if existing:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Direction with name '{direction_data.name}' already exists"
-        )
+    result = await session.execute(stmt)
+    user = result.scalar_one()
     
-    # Создаем новое направление
-    new_direction = await DirectionsDAO.add(session=session, values=direction_data)
-    return new_direction
-
-
-@router.delete("/directions/{direction_id}", status_code=status.HTTP_204_NO_CONTENT)
-async def delete_direction(
-    direction_id: int,
-    session: AsyncSession = TransactionSessionDep,
-    current_user: User = Depends(get_current_user)
-):
-    # Проверяем, существует ли направление
-    direction = await DirectionsDAO.find_one_or_none_by_id(data_id=direction_id, session=session)
-    if not direction:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Direction with ID {direction_id} not found"
-        )
-    
-    # Удаляем направление
-    await DirectionsDAO.delete(session=session, filters=IdModel(id=direction_id))
-    return Response(status_code=status.HTTP_204_NO_CONTENT)
-
-
-@router.get("/languages/", response_model=List[LanguageSchema])
-async def get_languages(session: AsyncSession = SessionDep):
-    languages = await LanguagesDAO.find_all(session=session, filters=None)
-    return languages
-
-
-@router.post("/languages/", response_model=LanguageSchema, status_code=status.HTTP_201_CREATED)
-async def create_language(
-    language_data: LanguageCreate, 
-    session: AsyncSession = TransactionSessionDep,
-    current_user: User = Depends(get_current_user)
-):
-    # Проверяем, существует ли уже такой язык
-    existing = await LanguagesDAO.find_one_or_none(
-        session=session, 
-        filters=LanguageCreate(name=language_data.name)
+    return UserMeResponse(
+        name=user.name,
+        email=user.email,
+        direction_ids=[d.id for d in user.directions],
+        language_ids=[l.id for l in user.languages]
     )
-    if existing:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Language with name '{language_data.name}' already exists"
-        )
-    
-    # Создаем новый язык
-    new_language = await LanguagesDAO.add(session=session, values=language_data)
-    return new_language
 
 
-@router.delete("/languages/{language_id}", status_code=status.HTTP_204_NO_CONTENT)
-async def delete_language(
-    language_id: int,
+
+
+@router.put("/me/", response_model=SUserInfo)
+async def update_me(
+    user_data: UserUpdateData,
     session: AsyncSession = TransactionSessionDep,
     current_user: User = Depends(get_current_user)
-):
-    # Проверяем, существует ли язык
-    language = await LanguagesDAO.find_one_or_none_by_id(data_id=language_id, session=session)
-    if not language:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Language with ID {language_id} not found"
+) -> SUserInfo:
+    """
+    Полное обновление данных пользователя.
+    Все поля обязательны для заполнения.
+    """
+    try:
+        # Загружаем пользователя со всеми связями
+        stmt = select(User).where(User.id == current_user.id).options(
+            selectinload(User.directions),
+            selectinload(User.languages)
         )
-    
-    # Удаляем язык
-    await LanguagesDAO.delete(session=session, filters=IdModel(id=language_id))
-    return Response(status_code=status.HTTP_204_NO_CONTENT)
-
-
-# @router.get("/all_users/")
-# async def get_all_users(session: AsyncSession = SessionDep,
-#                         user_data: User = Depends(get_current_admin_user)) -> List[SUserInfo]:
-#     return await UsersDAO.find_all(session=session, filters=None)
+        result = await session.execute(stmt)
+        user = result.scalar_one()
+        
+        # Проверяем, не занят ли email другим пользователем
+        if user_data.email != user.email:
+            existing_user = await UsersDAO.find_one_or_none(
+                session=session, 
+                filters=EmailModel(email=user_data.email)
+            )
+            if existing_user:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Email is already taken"
+                )
+        
+        # Загружаем новые направления и языки
+        directions = await DirectionsDAO.find_by_ids(session=session, ids=user_data.direction_ids)
+        if len(directions) != len(user_data.direction_ids):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="One or more selected directions do not exist"
+            )
+        
+        languages = await LanguagesDAO.find_by_ids(session=session, ids=user_data.language_ids)
+        if len(languages) != len(user_data.language_ids):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="One or more selected languages do not exist"
+            )
+        
+        # Обновляем основные данные и связи
+        user.name = user_data.name
+        user.email = user_data.email
+        user.directions = directions
+        user.languages = languages
+        
+        await session.commit()
+        return SUserInfo.model_validate(user)
+    except Exception as e:
+        await session.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Error updating user data"
+        ) from e

@@ -1,7 +1,6 @@
 import re
 from typing import Self, List
 from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator, model_validator, computed_field
-from app.auth.utils import get_password_hash
 
 
 class EmailModel(BaseModel):
@@ -33,9 +32,11 @@ class LanguageCreate(BaseModel):
     name: str = Field(min_length=2, max_length=50, description="Language name")
 
 
-class SUserRegister(UserBase):
+class SUserRegister(BaseModel):
+    email: EmailStr
     password: str = Field(min_length=5, max_length=50, description="Password from 5 to 50 characters")
     confirm_password: str = Field(min_length=5, max_length=50, description="Password confirmation")
+    name: str = Field(min_length=2, max_length=50, description="Name from 2 to 50 characters")
     direction_ids: List[int] = Field(description="List of direction IDs")
     language_ids: List[int] = Field(description="List of language IDs")
 
@@ -43,7 +44,6 @@ class SUserRegister(UserBase):
     def check_password(self) -> Self:
         if self.password != self.confirm_password:
             raise ValueError("Passwords do not match")
-        self.password = get_password_hash(self.password)
         return self
 
 
@@ -65,3 +65,34 @@ class SUserInfo(UserBase):
     id: int = Field(description="User ID")
     directions: List[DirectionSchema] = Field(default_factory=list, description="User directions")
     languages: List[LanguageSchema] = Field(default_factory=list, description="User languages")
+
+    class Config:
+        from_attributes = True
+        populate_by_name = True
+
+
+class SUserUpdate(BaseModel):
+    name: str | None = Field(None, min_length=2, max_length=50, description="Name from 2 to 50 characters")
+    email: EmailStr | None = Field(None, description="Email")
+    direction_ids: List[int] | None = Field(None, description="List of direction IDs. Send empty list to remove all directions")
+    language_ids: List[int] | None = Field(None, description="List of language IDs. Send empty list to remove all languages")
+
+    @model_validator(mode="after")
+    def check_at_least_one_field(self) -> Self:
+        if all(v is None for v in [self.name, self.email, self.direction_ids, self.language_ids]):
+            raise ValueError("At least one field must be provided for update")
+        return self
+
+    class Config:
+        from_attributes = True
+        populate_by_name = True
+
+
+class UserMeResponse(BaseModel):
+    name: str
+    email: EmailStr
+    direction_ids: List[int]
+    language_ids: List[int]
+
+    class Config:
+        from_attributes = True
