@@ -1,7 +1,7 @@
 from typing import List
 from fastapi import APIRouter, Response, Depends, HTTPException, status
 from app.auth.dependencies import get_current_user
-from app.auth.models import User
+from app.auth.models import User, Direction
 from app.auth.dao import DirectionsDAO
 from app.auth.schemas import DirectionSchema, DirectionCreate
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -22,25 +22,28 @@ async def get_directions(session: AsyncSession = SessionDep):
     return directions
 
 
-@router.post("/", response_model=DirectionSchema, status_code=status.HTTP_201_CREATED)
+@router.post("/", response_model=DirectionSchema)
 async def create_direction(
-    direction_data: DirectionCreate, 
-    session: AsyncSession = TransactionSessionDep,
-    current_user: User = Depends(get_current_user)
-):
-    # Проверяем, существует ли уже такое направление
+    direction_data: DirectionCreate,
+    session: AsyncSession = TransactionSessionDep
+) -> Direction:
+    """Создание нового направления"""
+    # Проверяем, существует ли направление с таким именем
     existing = await DirectionsDAO.find_one_or_none(
-        session=session, 
+        session=session,
         filters=DirectionCreate(name=direction_data.name)
     )
     if existing:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Direction with name '{direction_data.name}' already exists"
+            detail="Direction with this name already exists"
         )
-    
+
     # Создаем новое направление
-    new_direction = await DirectionsDAO.add(session=session, values=direction_data)
+    new_direction = Direction(name=direction_data.name)
+    await DirectionsDAO.add(session=session, obj=new_direction)
+    await session.commit()
+    
     return new_direction
 
 
@@ -59,5 +62,6 @@ async def delete_direction(
         )
     
     # Удаляем направление
-    await DirectionsDAO.delete(session=session, filters=IdModel(id=direction_id))
+    await DirectionsDAO.delete(session=session, obj=direction)
+    await session.commit()
     return Response(status_code=status.HTTP_204_NO_CONTENT) 

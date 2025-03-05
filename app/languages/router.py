@@ -1,7 +1,7 @@
 from typing import List
 from fastapi import APIRouter, Response, Depends, HTTPException, status
 from app.auth.dependencies import get_current_user
-from app.auth.models import User
+from app.auth.models import User, Language
 from app.auth.dao import LanguagesDAO
 from app.auth.schemas import LanguageSchema, LanguageCreate
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -22,25 +22,28 @@ async def get_languages(session: AsyncSession = SessionDep):
     return languages
 
 
-@router.post("/", response_model=LanguageSchema, status_code=status.HTTP_201_CREATED)
+@router.post("/", response_model=LanguageSchema)
 async def create_language(
-    language_data: LanguageCreate, 
-    session: AsyncSession = TransactionSessionDep,
-    current_user: User = Depends(get_current_user)
-):
-    # Проверяем, существует ли уже такой язык
+    language_data: LanguageCreate,
+    session: AsyncSession = TransactionSessionDep
+) -> Language:
+    """Создание нового языка программирования"""
+    # Проверяем, существует ли язык с таким именем
     existing = await LanguagesDAO.find_one_or_none(
-        session=session, 
+        session=session,
         filters=LanguageCreate(name=language_data.name)
     )
     if existing:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Language with name '{language_data.name}' already exists"
+            detail="Language with this name already exists"
         )
-    
+
     # Создаем новый язык
-    new_language = await LanguagesDAO.add(session=session, values=language_data)
+    new_language = Language(name=language_data.name)
+    await LanguagesDAO.add(session=session, obj=new_language)
+    await session.commit()
+    
     return new_language
 
 
@@ -59,5 +62,6 @@ async def delete_language(
         )
     
     # Удаляем язык
-    await LanguagesDAO.delete(session=session, filters=IdModel(id=language_id))
+    await LanguagesDAO.delete(session=session, obj=language)
+    await session.commit()
     return Response(status_code=status.HTTP_204_NO_CONTENT) 
