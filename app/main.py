@@ -16,6 +16,7 @@ import logging
 from app.auth.router import router as router_auth
 from app.directions.router import router as router_directions
 from app.languages.router import router as router_languages
+from app.interview.router import router as router_interview
 from fastapi.staticfiles import StaticFiles
 from app.auth.init_data import init_data
 from app.dao.session_maker import get_async_session
@@ -56,3 +57,4 @@ async def startup_event():
 app.include_router(router_auth)
 app.include_router(router_directions)
 app.include_router(router_languages)
+app.include_router(router_interview)

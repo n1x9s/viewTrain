@@ -33,6 +33,7 @@ class User(Base):
     # Связи с другими таблицами
     directions = relationship("Direction", secondary=user_direction, back_populates="users")
     languages = relationship("Language", secondary=user_language, back_populates="users")
+    interviews = relationship("Interview", back_populates="user")
 
     def set_password(self, password: str) -> None:
         """Синхронный метод для установки пароля"""
