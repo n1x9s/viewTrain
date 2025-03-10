@@ -120,8 +120,6 @@ async def get_me(
     )
 
 
-
-
 @router.put("/me/", response_model=SUserInfo)
 async def update_me(
     user_data: UserUpdateData,
@@ -182,3 +180,36 @@ async def update_me(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Error updating user data"
         ) from e
+
+
+@router.delete("/me/", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_account(
+    session: AsyncSession = SessionDep,
+    current_user: User = Depends(get_current_user)
+):
+    """Удаление аккаунта текущего пользователя"""
+    try:
+        # Загружаем пользователя со всеми связями
+        stmt = select(User).where(User.id == current_user.id).options(
+            selectinload(User.directions),
+            selectinload(User.languages)
+        )
+        result = await session.execute(stmt)
+        user = result.scalar_one()
+        
+        # Очищаем связи
+        user.directions.clear()
+        user.languages.clear()
+        
+        # Удаляем пользователя
+        await UsersDAO.delete(session=session, obj=user)
+        await session.commit()
+        
+        return Response(status_code=status.HTTP_204_NO_CONTENT)
+    except Exception as e:
+        logger.error(f"Error during account deletion: {e}")
+        await session.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Error during account deletion"
+        )
