@@ -1,7 +1,8 @@
-from sqlalchemy import Column, Integer, String, Float, ForeignKey, Text, Enum
+from sqlalchemy import Column, Integer, String, Float, ForeignKey, Text, Enum, DateTime
 from sqlalchemy.orm import relationship
 from app.dao.database import Base
 import enum
+from datetime import datetime
 
 
 class InterviewStatus(str, enum.Enum):
@@ -32,6 +33,8 @@ class Interview(Base):
     feedback = Column(Text, nullable=True)
     question_ids = Column(Text, nullable=True)  # Для хранения списка ID выбранных вопросов
     user_interview_id = Column(Integer, nullable=True)  # ID интервью для конкретного пользователя
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
     
     # Связи с другими таблицами
     user = relationship("User", back_populates="interviews")

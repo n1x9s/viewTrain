@@ -20,8 +20,10 @@ from app.interview.router import router as router_interview
 from fastapi.staticfiles import StaticFiles
 from app.auth.init_data import init_data
 from app.dao.session_maker import get_async_session
+from app.history.router import router as history_router
+from app.dao.database import Base, engine
 
-app = FastAPI()
+app = FastAPI(title="Interview Training API")
 
 # Настройка логирования
 logging.basicConfig(
@@ -53,8 +55,13 @@ async def startup_event():
         await init_data(session)
         break
 
+    async with engine.begin() as conn:
+        # await conn.run_sync(Base.metadata.drop_all)  # Раскомментировать для сброса БД
+        await conn.run_sync(Base.metadata.create_all)
+
 
 app.include_router(router_auth)
 app.include_router(router_directions)
 app.include_router(router_languages)
 app.include_router(router_interview)
+app.include_router(history_router)
