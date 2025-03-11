@@ -31,6 +31,7 @@ class Interview(Base):
     total_score = Column(Float, nullable=True)
     feedback = Column(Text, nullable=True)
     question_ids = Column(Text, nullable=True)  # Для хранения списка ID выбранных вопросов
+    user_interview_id = Column(Integer, nullable=True)  # ID интервью для конкретного пользователя
     
     # Связи с другими таблицами
     user = relationship("User", back_populates="interviews")

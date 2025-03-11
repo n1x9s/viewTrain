@@ -8,7 +8,7 @@ from app.auth.auth import authenticate_user, create_access_token
 from app.auth.dao import UsersDAO, DirectionsDAO, LanguagesDAO
 from app.auth.schemas import SUserRegister, SUserAuth, EmailModel, SUserAddDB, SUserInfo, SUserUpdate, UserMeResponse
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+from sqlalchemy import select, delete
 from sqlalchemy.orm import selectinload
 from pydantic import BaseModel
 
@@ -184,7 +184,7 @@ async def update_me(
 
 @router.delete("/me/", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_account(
-    session: AsyncSession = SessionDep,
+    session: AsyncSession = TransactionSessionDep,
     current_user: User = Depends(get_current_user)
 ):
     """Удаление аккаунта текущего пользователя"""
@@ -196,6 +196,27 @@ async def delete_account(
         )
         result = await session.execute(stmt)
         user = result.scalar_one()
+        
+        # Сначала удаляем все ответы пользователя
+        # Находим все интервью пользователя
+        from app.interview.models import Interview, UserAnswer
+        
+        # Получаем ID всех интервью пользователя
+        interview_query = await session.execute(
+            select(Interview.id).filter(Interview.user_id == user.id)
+        )
+        interview_ids = interview_query.scalars().all()
+        
+        if interview_ids:
+            # Удаляем все ответы для этих интервью
+            await session.execute(
+                delete(UserAnswer).where(UserAnswer.interview_id.in_(interview_ids))
+            )
+            
+            # Удаляем все интервью пользователя
+            await session.execute(
+                delete(Interview).where(Interview.user_id == user.id)
+            )
         
         # Очищаем связи
         user.directions.clear()

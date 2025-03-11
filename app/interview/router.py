@@ -28,10 +28,18 @@ async def start_interview(
     session: AsyncSession = TransactionSessionDep
 ):
     """Начать новое интервью"""
+    # Получаем количество интервью у текущего пользователя
+    query = await session.execute(
+        text("SELECT COUNT(*) FROM interviews WHERE user_id = :user_id"),
+        {"user_id": current_user.id}
+    )
+    user_interview_count = query.scalar_one() + 1  # Новый ID интервью для пользователя
+    
     # Создаем новое интервью
     new_interview = Interview(
         user_id=current_user.id,
-        status=InterviewStatusEnum.ONGOING
+        status=InterviewStatusEnum.ONGOING,
+        user_interview_id=user_interview_count  # Добавляем ID интервью для пользователя
     )
     
     # Добавляем в базу данных
@@ -55,7 +63,7 @@ async def start_interview(
     )
     
     return InterviewStart(
-        interview_id=new_interview.id,
+        interview_id=user_interview_count,  # Возвращаем ID интервью для пользователя
         status="ongoing",
         message="Interview started"
     )
@@ -69,7 +77,7 @@ async def get_question(
     """Получить следующий вопрос для текущего интервью"""
     # Находим активное интервью пользователя
     query = await session.execute(
-        text("SELECT id, question_ids FROM interviews WHERE user_id = :user_id AND status = :status ORDER BY id DESC LIMIT 1"),
+        text("SELECT id, question_ids, user_interview_id FROM interviews WHERE user_id = :user_id AND status = :status ORDER BY id DESC LIMIT 1"),
         {"user_id": current_user.id, "status": InterviewStatusEnum.ONGOING}
     )
     result = query.fetchone()
@@ -77,7 +85,7 @@ async def get_question(
     if not result:
         raise HTTPException(status_code=404, detail="Активное интервью не найдено. Начните новое интервью.")
     
-    interview_id, question_ids = result
+    interview_id, question_ids, user_interview_id = result
     
     # Получаем ID вопросов, выбранных для этого интервью
     if question_ids:
@@ -138,7 +146,7 @@ async def submit_answer(
     """Отправить ответ на вопрос"""
     # Находим активное интервью пользователя
     query = await session.execute(
-        text("SELECT id, question_ids FROM interviews WHERE user_id = :user_id AND status = :status ORDER BY id DESC LIMIT 1"),
+        text("SELECT id, question_ids, user_interview_id FROM interviews WHERE user_id = :user_id AND status = :status ORDER BY id DESC LIMIT 1"),
         {"user_id": current_user.id, "status": InterviewStatusEnum.ONGOING}
     )
     result = query.fetchone()
@@ -146,7 +154,7 @@ async def submit_answer(
     if not result:
         raise HTTPException(status_code=404, detail="Активное интервью не найдено. Начните новое интервью.")
     
-    interview_id, question_ids = result
+    interview_id, question_ids, user_interview_id = result
     
     # Проверяем, что вопрос существует
     question = await QuestionDAO.find_one_or_none_by_id(answer_data.question_id, session)
@@ -198,7 +206,7 @@ async def get_interview_status(
     """Получить статус текущего интервью"""
     # Находим активное интервью пользователя
     query = await session.execute(
-        text("SELECT id, question_ids FROM interviews WHERE user_id = :user_id AND status = :status ORDER BY id DESC LIMIT 1"),
+        text("SELECT id, question_ids, user_interview_id FROM interviews WHERE user_id = :user_id AND status = :status ORDER BY id DESC LIMIT 1"),
         {"user_id": current_user.id, "status": InterviewStatusEnum.ONGOING}
     )
     result = query.fetchone()
@@ -206,7 +214,7 @@ async def get_interview_status(
     if not result:
         raise HTTPException(status_code=404, detail="Активное интервью не найдено. Начните новое интервью.")
     
-    interview_id, question_ids = result
+    interview_id, question_ids, user_interview_id = result
     
     # Получаем количество выбранных вопросов
     if question_ids:
@@ -222,7 +230,7 @@ async def get_interview_status(
     progress = f"{int(answered_questions / total_questions * 100)}%" if total_questions > 0 else "0%"
     
     return InterviewStatus(
-        interview_id=interview_id,
+        interview_id=user_interview_id,  # Используем ID интервью для пользователя
         answered_questions=answered_questions,
         total_questions=total_questions,
         progress=progress
@@ -237,13 +245,15 @@ async def finish_interview(
     """Завершить текущее интервью"""
     # Находим активное интервью пользователя
     query = await session.execute(
-        text("SELECT id FROM interviews WHERE user_id = :user_id AND status = :status ORDER BY id DESC LIMIT 1"),
+        text("SELECT id, user_interview_id FROM interviews WHERE user_id = :user_id AND status = :status ORDER BY id DESC LIMIT 1"),
         {"user_id": current_user.id, "status": InterviewStatusEnum.ONGOING}
     )
-    interview_id = query.scalar_one_or_none()
+    result = query.fetchone()
     
-    if not interview_id:
+    if not result:
         raise HTTPException(status_code=404, detail="Активное интервью не найдено. Начните новое интервью.")
+    
+    interview_id, user_interview_id = result
     
     # Получаем интервью
     interview = await InterviewDAO.find_one_or_none_by_id(interview_id, session)
@@ -270,7 +280,7 @@ async def finish_interview(
     await session.flush()
     
     return InterviewFinish(
-        interview_id=interview_id,
+        interview_id=user_interview_id,  # Используем ID интервью для пользователя
         score=score_percentage,
         feedback=feedback
     )
