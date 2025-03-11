@@ -12,10 +12,14 @@ from app.auth.dependencies import get_current_user
 from app.auth.models import User
 import logging
 from sqlalchemy import text
+import random
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/interview", tags=["interview"])
+
+# Константа для количества вопросов в интервью
+QUESTIONS_PER_INTERVIEW = 10
 
 
 @router.get("/start", response_model=InterviewStart)
@@ -34,6 +38,22 @@ async def start_interview(
     session.add(new_interview)
     await session.flush()
     
+    # Получаем все вопросы
+    query = await session.execute(text("SELECT id FROM pythonn"))
+    all_question_ids = query.scalars().all()
+    
+    # Выбираем 10 случайных вопросов, если их больше 10
+    if len(all_question_ids) > QUESTIONS_PER_INTERVIEW:
+        selected_question_ids = random.sample(all_question_ids, QUESTIONS_PER_INTERVIEW)
+    else:
+        selected_question_ids = all_question_ids
+    
+    # Сохраняем выбранные вопросы в атрибуте интервью
+    await session.execute(
+        text("UPDATE interviews SET question_ids = :question_ids WHERE id = :id"),
+        {"question_ids": ','.join(map(str, selected_question_ids)), "id": new_interview.id}
+    )
+    
     return InterviewStart(
         interview_id=new_interview.id,
         status="ongoing",
@@ -49,27 +69,58 @@ async def get_question(
     """Получить следующий вопрос для текущего интервью"""
     # Находим активное интервью пользователя
     query = await session.execute(
-        text("SELECT id FROM interviews WHERE user_id = :user_id AND status = :status ORDER BY id DESC LIMIT 1"),
+        text("SELECT id, question_ids FROM interviews WHERE user_id = :user_id AND status = :status ORDER BY id DESC LIMIT 1"),
         {"user_id": current_user.id, "status": InterviewStatusEnum.ONGOING}
     )
-    interview_id = query.scalar_one_or_none()
+    result = query.fetchone()
     
-    if not interview_id:
+    if not result:
         raise HTTPException(status_code=404, detail="Активное интервью не найдено. Начните новое интервью.")
+    
+    interview_id, question_ids = result
+    
+    # Получаем ID вопросов, выбранных для этого интервью
+    if question_ids:
+        selected_question_ids = list(map(float, question_ids.split(',')))
+    else:
+        # Если question_ids пуста, получаем все вопросы
+        query = await session.execute(text("SELECT id FROM pythonn"))
+        all_question_ids = query.scalars().all()
+        
+        # Выбираем 10 случайных вопросов, если их больше 10
+        if len(all_question_ids) > QUESTIONS_PER_INTERVIEW:
+            selected_question_ids = random.sample(all_question_ids, QUESTIONS_PER_INTERVIEW)
+        else:
+            selected_question_ids = all_question_ids
+        
+        # Сохраняем выбранные вопросы
+        await session.execute(
+            text("UPDATE interviews SET question_ids = :question_ids WHERE id = :id"),
+            {"question_ids": ','.join(map(str, selected_question_ids)), "id": interview_id}
+        )
     
     # Получаем ID вопросов, на которые уже ответили
     answered_question_ids = await UserAnswerDAO.get_answered_question_ids(session, interview_id)
     
-    # Получаем случайный вопрос, исключая уже отвеченные
-    question = await QuestionDAO.get_random_question(session, exclude_ids=answered_question_ids)
+    # Находим вопросы, на которые еще не ответили
+    unanswered_question_ids = [qid for qid in selected_question_ids if qid not in answered_question_ids]
     
-    if not question:
+    if not unanswered_question_ids:
         # Если все вопросы отвечены, завершаем интервью
         interview = await InterviewDAO.find_one_or_none_by_id(interview_id, session)
         if interview:
             interview.status = InterviewStatusEnum.COMPLETED
             await session.flush()
         raise HTTPException(status_code=404, detail="Все вопросы уже отвечены. Интервью завершено.")
+    
+    # Выбираем случайный вопрос из оставшихся
+    random_question_id = random.choice(unanswered_question_ids)
+    
+    # Получаем вопрос
+    question = await QuestionDAO.find_one_or_none_by_id(random_question_id, session)
+    
+    if not question:
+        raise HTTPException(status_code=404, detail="Вопрос не найден")
     
     return QuestionResponse(
         question_id=question.id,
@@ -87,18 +138,26 @@ async def submit_answer(
     """Отправить ответ на вопрос"""
     # Находим активное интервью пользователя
     query = await session.execute(
-        text("SELECT id FROM interviews WHERE user_id = :user_id AND status = :status ORDER BY id DESC LIMIT 1"),
+        text("SELECT id, question_ids FROM interviews WHERE user_id = :user_id AND status = :status ORDER BY id DESC LIMIT 1"),
         {"user_id": current_user.id, "status": InterviewStatusEnum.ONGOING}
     )
-    interview_id = query.scalar_one_or_none()
+    result = query.fetchone()
     
-    if not interview_id:
+    if not result:
         raise HTTPException(status_code=404, detail="Активное интервью не найдено. Начните новое интервью.")
+    
+    interview_id, question_ids = result
     
     # Проверяем, что вопрос существует
     question = await QuestionDAO.find_one_or_none_by_id(answer_data.question_id, session)
     if not question:
         raise HTTPException(status_code=404, detail="Вопрос не найден")
+    
+    # Проверяем, что вопрос входит в выбранные для этого интервью
+    if question_ids:
+        selected_question_ids = list(map(float, question_ids.split(',')))
+        if answer_data.question_id not in selected_question_ids:
+            raise HTTPException(status_code=400, detail="Этот вопрос не входит в текущее интервью")
     
     # Проверяем, не отвечал ли пользователь уже на этот вопрос
     existing_answer = await UserAnswerDAO.find_one_or_none(
@@ -139,19 +198,25 @@ async def get_interview_status(
     """Получить статус текущего интервью"""
     # Находим активное интервью пользователя
     query = await session.execute(
-        text("SELECT id FROM interviews WHERE user_id = :user_id AND status = :status ORDER BY id DESC LIMIT 1"),
+        text("SELECT id, question_ids FROM interviews WHERE user_id = :user_id AND status = :status ORDER BY id DESC LIMIT 1"),
         {"user_id": current_user.id, "status": InterviewStatusEnum.ONGOING}
     )
-    interview_id = query.scalar_one_or_none()
+    result = query.fetchone()
     
-    if not interview_id:
+    if not result:
         raise HTTPException(status_code=404, detail="Активное интервью не найдено. Начните новое интервью.")
+    
+    interview_id, question_ids = result
+    
+    # Получаем количество выбранных вопросов
+    if question_ids:
+        selected_question_ids = question_ids.split(',')
+        total_questions = len(selected_question_ids)
+    else:
+        total_questions = QUESTIONS_PER_INTERVIEW
     
     # Подсчитываем количество отвеченных вопросов
     answered_questions = await UserAnswerDAO.count_answers(session, interview_id)
-    
-    # Получаем общее количество вопросов
-    total_questions = await QuestionDAO.count_questions(session)
     
     # Вычисляем прогресс
     progress = f"{int(answered_questions / total_questions * 100)}%" if total_questions > 0 else "0%"

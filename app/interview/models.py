@@ -30,6 +30,7 @@ class Interview(Base):
     status = Column(String, default=InterviewStatus.ONGOING, nullable=False)
     total_score = Column(Float, nullable=True)
     feedback = Column(Text, nullable=True)
+    question_ids = Column(Text, nullable=True)  # Для хранения списка ID выбранных вопросов
     
     # Связи с другими таблицами
     user = relationship("User", back_populates="interviews")
