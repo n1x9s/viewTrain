@@ -192,9 +192,48 @@ async def submit_answer(
     session.add(user_answer)
     await session.flush()
     
+    # Проверяем количество отвеченных вопросов
+    answered_questions = await UserAnswerDAO.count_answers(session, interview_id)
+    
+    # Если ответили на все вопросы, завершаем интервью и возвращаем результат
+    if answered_questions >= QUESTIONS_PER_INTERVIEW:
+        # Получаем интервью
+        interview = await InterviewDAO.find_one_or_none_by_id(interview_id, session)
+        
+        # Рассчитываем итоговую оценку
+        total_score = await InterviewDAO.calculate_interview_score(session, interview_id)
+        score_percentage = int(total_score * 100)
+        
+        # Формируем обратную связь
+        if total_score > 0.8:
+            final_feedback = "Отличный результат! Вы хорошо знаете материал."
+        elif total_score > 0.6:
+            final_feedback = "Хороший результат! Подтяните некоторые темы для улучшения."
+        elif total_score > 0.4:
+            final_feedback = "Средний результат. Рекомендуем повторить основные темы."
+        else:
+            final_feedback = "Результат ниже среднего. Рекомендуем дополнительное изучение материала."
+        
+        # Обновляем интервью
+        interview.status = InterviewStatusEnum.COMPLETED
+        interview.total_score = total_score
+        interview.feedback = final_feedback
+        
+        await session.flush()
+        
+        # Возвращаем результат последнего ответа и итоговый результат
+        return AnswerResponse(
+            score=score,
+            feedback=feedback,
+            interview_completed=True,
+            final_score=score_percentage,
+            final_feedback=final_feedback
+        )
+    
     return AnswerResponse(
         score=score,
-        feedback=feedback
+        feedback=feedback,
+        interview_completed=False
     )
 
 

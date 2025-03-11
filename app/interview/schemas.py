@@ -22,6 +22,9 @@ class AnswerRequest(BaseModel):
 class AnswerResponse(BaseModel):
     score: float = Field(description="Оценка ответа")
     feedback: str = Field(description="Обратная связь по ответу")
+    interview_completed: bool = Field(description="Флаг завершения интервью")
+    final_score: Optional[float] = Field(None, description="Итоговая оценка интервью (если завершено)")
+    final_feedback: Optional[str] = Field(None, description="Итоговая обратная связь по интервью (если завершено)")
 
 
 class InterviewStatus(BaseModel):
