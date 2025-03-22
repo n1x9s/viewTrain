@@ -1,10 +1,10 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.dao.session_maker import SessionDep, TransactionSessionDep
 from app.interview.schemas import (
     InterviewStart, QuestionResponse, AnswerRequest, 
     AnswerResponse, InterviewStatus, InterviewFinish,
-    InterviewCreate, UserAnswerCreate
+    InterviewCreate, UserAnswerCreate, QuestionListResponse
 )
 from app.interview.dao import QuestionDAO, InterviewDAO, UserAnswerDAO
 from app.interview.models import Interview, UserAnswer, InterviewStatus as InterviewStatusEnum
@@ -13,6 +13,7 @@ from app.auth.models import User
 import logging
 from sqlalchemy import text
 import random
+from typing import Optional
 
 logger = logging.getLogger(__name__)
 
@@ -322,4 +323,41 @@ async def finish_interview(
         interview_id=user_interview_id,  # Используем ID интервью для пользователя
         score=score_percentage,
         feedback=feedback
+    )
+
+
+@router.get("/questions", response_model=QuestionListResponse)
+async def get_all_questions(
+    page: int = Query(1, ge=1, description="Номер страницы"),
+    limit: int = Query(50, ge=1, le=100, description="Количество вопросов на странице"),
+    tag: Optional[str] = Query(None, description="Фильтр по тегу вопроса"),
+    current_user: User = Depends(get_current_user),
+    session: AsyncSession = SessionDep
+):
+    """
+    Получить список всех вопросов с пагинацией и возможностью фильтрации по тегу.
+    
+    - **page**: Номер страницы (начиная с 1)
+    - **limit**: Максимальное количество вопросов на странице
+    - **tag**: Опциональный фильтр по тегу вопроса
+    """
+    # Вычисляем значение skip на основе номера страницы
+    skip = (page - 1) * limit
+    
+    questions, total = await QuestionDAO.get_all_questions(
+        session=session,
+        skip=skip,
+        limit=limit,
+        tag=tag
+    )
+    
+    # Вычисляем общее количество страниц
+    pages = (total + limit - 1) // limit
+    
+    return QuestionListResponse(
+        items=questions,
+        total=total,
+        page=page,
+        pages=pages,
+        limit=limit
     )

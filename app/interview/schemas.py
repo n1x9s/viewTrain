@@ -98,3 +98,14 @@ class Interview(InterviewBase):
     answers: List[UserAnswer] = Field(default_factory=list, description="Ответы пользователя")
     
     model_config = ConfigDict(from_attributes=True)
+
+
+class QuestionListResponse(BaseModel):
+    """Ответ с пагинацией списка вопросов"""
+    items: List[Question] = Field(description="Список вопросов")
+    total: int = Field(description="Общее количество вопросов")
+    page: int = Field(description="Текущая страница")
+    pages: int = Field(description="Общее количество страниц")
+    limit: int = Field(description="Количество вопросов на странице")
+    
+    model_config = ConfigDict(from_attributes=True)

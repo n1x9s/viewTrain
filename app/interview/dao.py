@@ -39,6 +39,46 @@ class QuestionDAO(BaseDAO):
         query = select(func.count()).select_from(cls.model)
         result = await session.execute(query)
         return result.scalar_one()
+    
+    @classmethod
+    async def get_all_questions(
+        cls, 
+        session: AsyncSession, 
+        skip: int = 0, 
+        limit: int = 100, 
+        tag: Optional[str] = None
+    ) -> Tuple[List[Question], int]:
+        """
+        Получить все вопросы с возможностью пагинации и фильтрации по тегу
+        
+        Args:
+            session: Сессия БД
+            skip: Сколько вопросов пропустить (для пагинации)
+            limit: Максимальное количество вопросов для возврата
+            tag: Фильтр по тегу вопроса
+            
+        Returns:
+            Tuple[List[Question], int]: Список вопросов и общее количество
+        """
+        # Базовый запрос
+        query = select(cls.model)
+        
+        # Применяем фильтр по тегу, если указан
+        if tag:
+            query = query.filter(cls.model.tag == tag)
+            
+        # Запрос на подсчет общего количества с учетом фильтров
+        count_query = select(func.count()).select_from(query.subquery())
+        total = await session.scalar(count_query)
+        
+        # Применяем пагинацию
+        query = query.offset(skip).limit(limit)
+        
+        # Выполняем запрос
+        result = await session.execute(query)
+        questions = result.scalars().all()
+        
+        return list(questions), total
 
 
 class InterviewDAO(BaseDAO):
