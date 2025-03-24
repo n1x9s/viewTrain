@@ -6,7 +6,10 @@ from sqlalchemy import func
 from sqlalchemy.orm import selectinload
 import random
 from typing import List, Optional, Tuple
+from app.services.gigachat import GigaChatService
+import logging
 
+logger = logging.getLogger(__name__)
 
 class QuestionDAO(BaseDAO):
     model = Question
@@ -124,37 +127,10 @@ class UserAnswerDAO(BaseDAO):
     
     @classmethod
     async def evaluate_answer(cls, session: AsyncSession, question: Question, user_answer: str) -> tuple[float, str]:
-        """Оценить ответ пользователя"""
-        # Здесь можно реализовать более сложную логику оценки ответа
-        # Например, использовать NLP или другие методы
-        # В данном примере используется простая проверка на совпадение ключевых слов
-        
-        correct_answer = question.answer.lower()
-        user_answer_lower = user_answer.lower()
-        
-        # Простая оценка на основе совпадения ключевых слов
-        # В реальном приложении здесь может быть более сложная логика
-        keywords = [word.strip() for word in correct_answer.split() if len(word.strip()) > 3]
-        matched_keywords = sum(1 for keyword in keywords if keyword in user_answer_lower)
-        
-        if not keywords:
-            score = 1.0 if user_answer_lower == correct_answer else 0.0
-        else:
-            score = min(1.0, matched_keywords / len(keywords))
-        
-        # Учитываем сложность вопроса, если она указана
-        if question.chance is not None:
-            # Если chance - это сложность, то более сложные вопросы дают больше баллов
-            # Если chance - это вероятность, то более редкие вопросы дают больше баллов
-            # В данном примере предполагаем, что chance - это сложность от 0 до 1
-            score = score * (0.5 + 0.5 * question.chance)
-        
-        # Формируем обратную связь
-        if score > 0.8:
-            feedback = "Отличный ответ! Вы правильно описали ключевые аспекты."
-        elif score > 0.5:
-            feedback = "Хороший ответ, но можно было бы упомянуть больше ключевых моментов."
-        else:
-            feedback = f"Ответ неполный. Правильный ответ должен включать: {correct_answer}"
-        
-        return score, feedback 
+        """Оценить ответ пользователя с помощью GigaChat"""
+        gigachat_service = GigaChatService()
+        return await gigachat_service.evaluate_answer(
+            question=question.question,
+            correct_answer=question.answer,
+            user_answer=user_answer
+        ) 

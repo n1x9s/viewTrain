@@ -1,6 +1,7 @@
 import os
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
+from typing import Optional
 
 class Settings(BaseSettings):
     DB_NAME: str
@@ -12,6 +13,8 @@ class Settings(BaseSettings):
     SECRET_KEY: str
     ALGORITHM: str
 
+    # Настройки GigaChat
+    GIGACHAT_CREDENTIALS: str = "YOUR_CREDENTIALS"  # Замените на ваши креды
 
     @property
     def DATABASE_URL(self) -> str:
