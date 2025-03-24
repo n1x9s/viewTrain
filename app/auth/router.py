@@ -11,6 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, delete
 from sqlalchemy.orm import selectinload
 from pydantic import BaseModel
+from fastapi_versioning import version
 
 from app.dao.session_maker import TransactionSessionDep, SessionDep
 
@@ -26,6 +27,7 @@ class UserUpdateData(BaseModel):
 
 
 @router.post("/register")
+@version(1)
 async def register_user(user_data: SUserRegister, session: AsyncSession = SessionDep):
     logger.info(f"Registering new user with email: {user_data.email}")
     
@@ -80,6 +82,7 @@ async def register_user(user_data: SUserRegister, session: AsyncSession = Sessio
 
 
 @router.post("/login/")
+@version(1)
 async def auth_user(response: Response, user_data: SUserAuth, session: AsyncSession = SessionDep):
     logger.info(f"Login attempt for user: {user_data.email}")
     check = await authenticate_user(session=session, email=user_data.email, password=user_data.password)
@@ -94,12 +97,14 @@ async def auth_user(response: Response, user_data: SUserAuth, session: AsyncSess
 
 
 @router.post("/logout/")
+@version(1)
 async def logout_user(response: Response):
     response.delete_cookie(key="users_access_token")
     return {'message': 'Logout is successful!'}
 
 
 @router.get("/me/")
+@version(1)
 async def get_me(
     session: AsyncSession = SessionDep,
     current_user: User = Depends(get_current_user)
@@ -121,6 +126,7 @@ async def get_me(
 
 
 @router.put("/me/", response_model=SUserInfo)
+@version(1)
 async def update_me(
     user_data: UserUpdateData,
     session: AsyncSession = TransactionSessionDep,
@@ -183,6 +189,7 @@ async def update_me(
 
 
 @router.delete("/me/", status_code=status.HTTP_204_NO_CONTENT)
+@version(1)
 async def delete_account(
     session: AsyncSession = TransactionSessionDep,
     current_user: User = Depends(get_current_user)

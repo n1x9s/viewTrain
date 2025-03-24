@@ -5,12 +5,14 @@ from app.history.schemas import InterviewHistoryList, InterviewHistoryDetail, In
 from app.history.dao import InterviewHistoryDAO
 from app.auth.dependencies import get_current_user
 from app.auth.models import User
+from fastapi_versioning import version
 
 
 router = APIRouter(prefix="/history", tags=["history"])
 
 
 @router.get("", response_model=InterviewHistoryList)
+@version(1)
 async def get_interview_history(
     current_user: User = Depends(get_current_user),
     session: AsyncSession = SessionDep
@@ -31,6 +33,7 @@ async def get_interview_history(
 
 
 @router.get("/{interview_id}", response_model=InterviewHistoryDetail)
+@version(1)
 async def get_interview_detail(
     interview_id: int,
     current_user: User = Depends(get_current_user),

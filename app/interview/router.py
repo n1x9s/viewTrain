@@ -14,6 +14,7 @@ import logging
 from sqlalchemy import text
 import random
 from typing import Optional
+from fastapi_versioning import version
 
 logger = logging.getLogger(__name__)
 
@@ -24,6 +25,7 @@ QUESTIONS_PER_INTERVIEW = 10
 
 
 @router.get("/start", response_model=InterviewStart)
+@version(1)
 async def start_interview(
     current_user: User = Depends(get_current_user),
     session: AsyncSession = TransactionSessionDep
@@ -71,6 +73,7 @@ async def start_interview(
 
 
 @router.get("/question", response_model=QuestionResponse)
+@version(1)
 async def get_question(
     current_user: User = Depends(get_current_user),
     session: AsyncSession = SessionDep
@@ -139,6 +142,7 @@ async def get_question(
 
 
 @router.post("/answer", response_model=AnswerResponse)
+@version(1)
 async def submit_answer(
     answer_data: AnswerRequest,
     current_user: User = Depends(get_current_user),
@@ -239,6 +243,7 @@ async def submit_answer(
 
 
 @router.get("/status", response_model=InterviewStatus)
+@version(1)
 async def get_interview_status(
     current_user: User = Depends(get_current_user),
     session: AsyncSession = SessionDep
@@ -278,6 +283,7 @@ async def get_interview_status(
 
 
 @router.get("/finish", response_model=InterviewFinish)
+@version(1)
 async def finish_interview(
     current_user: User = Depends(get_current_user),
     session: AsyncSession = TransactionSessionDep
@@ -327,6 +333,7 @@ async def finish_interview(
 
 
 @router.get("/questions", response_model=QuestionListResponse)
+@version(1)
 async def get_all_questions(
     page: int = Query(1, ge=1, description="Номер страницы"),
     limit: int = Query(50, ge=1, le=100, description="Количество вопросов на странице"),

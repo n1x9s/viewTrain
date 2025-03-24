@@ -20,8 +20,9 @@ from app.interview.router import router as router_interview
 from fastapi.staticfiles import StaticFiles
 from app.auth.init_data import init_data
 from app.dao.session_maker import get_async_session
-from app.history.router import router as history_router
+from app.history.router import router as router_history
 from app.dao.database import Base, engine
+from fastapi_versioning import VersionedFastAPI, version
 
 app = FastAPI(title="Interview Training API")
 
@@ -40,12 +41,11 @@ app.add_middleware(
     allow_headers=["*"],  # Разрешаем все заголовки
 )
 
-app.mount('/static', StaticFiles(directory='app/static'), name='static')
-
 
 @app.get("/")
+@version(1)
 async def root():
-    return HTMLResponse("Cваггер <a href='/docs'>тут</a>")
+    return HTMLResponse("Cваггер <a href='/api/v1/docs'>тут</a>")
 
 
 @app.on_event("startup")
@@ -60,8 +60,25 @@ async def startup_event():
         await conn.run_sync(Base.metadata.create_all)
 
 
+# Подключаем маршрутизаторы к приложению
 app.include_router(router_auth)
 app.include_router(router_directions)
 app.include_router(router_languages)
 app.include_router(router_interview)
-app.include_router(history_router)
+app.include_router(router_history)
+
+# Применяем версионирование к приложению
+app = VersionedFastAPI(app,
+    version_format='{major}',
+    prefix_format='/api/v{major}',
+    description='Interview Training API',
+    enable_latest=True)
+
+# Применяем CORS middleware после версионирования
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
