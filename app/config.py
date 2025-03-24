@@ -14,7 +14,7 @@ class Settings(BaseSettings):
     ALGORITHM: str
 
     # Настройки GigaChat
-    GIGACHAT_CREDENTIALS: str = "YOUR_CREDENTIALS"  # Замените на ваши креды
+    GIGACHAT_CREDENTIALS: str 
 
     @property
     def DATABASE_URL(self) -> str:
