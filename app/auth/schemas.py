@@ -32,13 +32,33 @@ class LanguageCreate(BaseModel):
     name: str = Field(min_length=2, max_length=50, description="Language name")
 
 
+class SUserRegisterSimple(BaseModel):
+    email: EmailStr
+    password: str = Field(min_length=5, max_length=50, description="Password from 5 to 50 characters")
+    name: str = Field(min_length=2, max_length=50, description="Name from 2 to 50 characters")
+    phone: str = Field(min_length=10, max_length=15, description="Phone number from 10 to 15 characters")
+
+    @field_validator('phone')
+    def validate_phone(cls, v):
+        if not v.replace('+', '').isdigit():
+            raise ValueError('Phone number must contain only digits and optionally a plus sign')
+        return v
+
+
 class SUserRegister(BaseModel):
     email: EmailStr
     password: str = Field(min_length=5, max_length=50, description="Password from 5 to 50 characters")
     confirm_password: str = Field(min_length=5, max_length=50, description="Password confirmation")
     name: str = Field(min_length=2, max_length=50, description="Name from 2 to 50 characters")
+    phone: str = Field(min_length=10, max_length=15, description="Phone number from 10 to 15 characters")
     direction_ids: List[int] = Field(description="List of direction IDs")
     language_ids: List[int] = Field(description="List of language IDs")
+
+    @field_validator('phone')
+    def validate_phone(cls, v):
+        if not v.replace('+', '').isdigit():
+            raise ValueError('Phone number must contain only digits and optionally a plus sign')
+        return v
 
     @model_validator(mode="after")
     def check_password(self) -> Self:

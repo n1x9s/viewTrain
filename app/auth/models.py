@@ -29,6 +29,7 @@ class User(Base):
     email = Column(String, unique=True, index=True, nullable=False)
     hashed_password = Column(String, nullable=False)
     name = Column(String, nullable=False)
+    phone = Column(String, nullable=False)
     
     # Связи с другими таблицами
     directions = relationship("Direction", secondary=user_direction, back_populates="users")

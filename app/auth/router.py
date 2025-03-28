@@ -6,7 +6,7 @@ from app.auth.models import User
 from app.exceptions import UserAlreadyExistsException, IncorrectEmailOrPasswordException
 from app.auth.auth import authenticate_user, create_access_token
 from app.auth.dao import UsersDAO, DirectionsDAO, LanguagesDAO
-from app.auth.schemas import SUserRegister, SUserAuth, EmailModel, SUserAddDB, SUserInfo, SUserUpdate, UserMeResponse
+from app.auth.schemas import SUserRegisterSimple, SUserAuth, EmailModel, SUserAddDB, SUserInfo, SUserUpdate, UserMeResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, delete
 from sqlalchemy.orm import selectinload
@@ -28,7 +28,7 @@ class UserUpdateData(BaseModel):
 
 @router.post("/register")
 @version(1)
-async def register_user(user_data: SUserRegister, session: AsyncSession = SessionDep):
+async def register_user(user_data: SUserRegisterSimple, session: AsyncSession = SessionDep):
     logger.info(f"Registering new user with email: {user_data.email}")
     
     # Проверяем, существует ли пользователь
@@ -47,23 +47,12 @@ async def register_user(user_data: SUserRegister, session: AsyncSession = Sessio
         # Создаем нового пользователя
         new_user = User(
             email=user_data.email,
-            name=user_data.name
+            name=user_data.name,
+            phone=user_data.phone
         )
         logger.info(f"Setting password for new user: {user_data.email}")
         new_user.set_password(user_data.password)
         logger.info("Password has been set")
-
-        # Получаем объекты направлений
-        directions = await DirectionsDAO.find_by_ids(session=session, ids=user_data.direction_ids)
-        logger.info(f"Found directions: {directions}")
-
-        # Получаем объекты языков
-        languages = await LanguagesDAO.find_by_ids(session=session, ids=user_data.language_ids)
-        logger.info(f"Found languages: {languages}")
-
-        # Добавляем связи
-        new_user.directions.extend(directions)
-        new_user.languages.extend(languages)
 
         # Сохраняем пользователя
         await UsersDAO.add(session, new_user)
