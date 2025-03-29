@@ -33,10 +33,17 @@ class LanguageCreate(BaseModel):
 
 
 class SUserRegisterSimple(BaseModel):
-    email: EmailStr
+    email: EmailStr = Field(
+        description="Email address in English characters",
+        pattern=r'^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$'
+    )
     password: str = Field(min_length=5, max_length=50, description="Password from 5 to 50 characters")
     name: str = Field(min_length=2, max_length=50, description="Name from 2 to 50 characters")
-    phone: str = Field(min_length=10, max_length=20, description="Phone number in any format")
+    phone: str = Field(
+        min_length=10,
+        max_length=20,
+        description="Phone number in format +7XXXXXXXXXX"
+    )
 
     @field_validator('phone')
     def validate_phone(cls, v):
@@ -44,10 +51,15 @@ class SUserRegisterSimple(BaseModel):
         cleaned = ''.join(c for c in v if c.isdigit() or (c == '+' and v.index(c) == 0))
         # Проверяем длину после очистки (без учета плюса)
         digits_only = cleaned.replace('+', '')
+        if len(digits_only) > 12:
+            raise ValueError('Phone number must not exceed 12 digits')
         if len(digits_only) < 10:
             raise ValueError('Phone number must contain at least 10 digits')
         if not digits_only.isdigit():
             raise ValueError('Phone number must contain only digits after removing formatting')
+        # Проверяем формат +7XXXXXXXXXX
+        if not cleaned.startswith('+7'):
+            cleaned = '+7' + digits_only[-10:]
         return cleaned
 
 
