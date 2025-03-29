@@ -27,23 +27,22 @@ class UserUpdateData(BaseModel):
 
 
 @router.post("/register")
-@version(1)
 async def register_user(user_data: SUserRegisterSimple, session: AsyncSession = SessionDep):
-    logger.info(f"Registering new user with email: {user_data.email}")
+    logger.info(f"Registering new user with data: {user_data.model_dump()}")
     
-    # Проверяем, существует ли пользователь
-    existing_user = await UsersDAO.find_one_or_none(
-        session=session,
-        filters=EmailModel(email=user_data.email)
-    )
-    if existing_user:
-        logger.warning(f"User with email {user_data.email} already exists")
-        raise HTTPException(
-            status_code=400,
-            detail="Email already registered"
-        )
-
     try:
+        # Проверяем, существует ли пользователь
+        existing_user = await UsersDAO.find_one_or_none(
+            session=session,
+            filters=EmailModel(email=user_data.email)
+        )
+        if existing_user:
+            logger.warning(f"User with email {user_data.email} already exists")
+            raise HTTPException(
+                status_code=400,
+                detail="Email already registered"
+            )
+
         # Создаем нового пользователя
         new_user = User(
             email=user_data.email,
@@ -66,7 +65,7 @@ async def register_user(user_data: SUserRegisterSimple, session: AsyncSession = 
         await session.rollback()
         raise HTTPException(
             status_code=500,
-            detail="Error during registration"
+            detail=str(e)
         )
 
 

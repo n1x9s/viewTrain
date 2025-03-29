@@ -36,13 +36,19 @@ class SUserRegisterSimple(BaseModel):
     email: EmailStr
     password: str = Field(min_length=5, max_length=50, description="Password from 5 to 50 characters")
     name: str = Field(min_length=2, max_length=50, description="Name from 2 to 50 characters")
-    phone: str = Field(min_length=10, max_length=15, description="Phone number from 10 to 15 characters")
+    phone: str = Field(min_length=10, max_length=20, description="Phone number in any format")
 
     @field_validator('phone')
     def validate_phone(cls, v):
-        if not v.replace('+', '').isdigit():
-            raise ValueError('Phone number must contain only digits and optionally a plus sign')
-        return v
+        # Удаляем все нецифровые символы, оставляем только цифры и плюс в начале
+        cleaned = ''.join(c for c in v if c.isdigit() or (c == '+' and v.index(c) == 0))
+        # Проверяем длину после очистки (без учета плюса)
+        digits_only = cleaned.replace('+', '')
+        if len(digits_only) < 10:
+            raise ValueError('Phone number must contain at least 10 digits')
+        if not digits_only.isdigit():
+            raise ValueError('Phone number must contain only digits after removing formatting')
+        return cleaned
 
 
 class SUserRegister(BaseModel):
@@ -50,15 +56,21 @@ class SUserRegister(BaseModel):
     password: str = Field(min_length=5, max_length=50, description="Password from 5 to 50 characters")
     confirm_password: str = Field(min_length=5, max_length=50, description="Password confirmation")
     name: str = Field(min_length=2, max_length=50, description="Name from 2 to 50 characters")
-    phone: str = Field(min_length=10, max_length=15, description="Phone number from 10 to 15 characters")
+    phone: str = Field(min_length=10, max_length=20, description="Phone number in any format")
     direction_ids: List[int] = Field(description="List of direction IDs")
     language_ids: List[int] = Field(description="List of language IDs")
 
     @field_validator('phone')
     def validate_phone(cls, v):
-        if not v.replace('+', '').isdigit():
-            raise ValueError('Phone number must contain only digits and optionally a plus sign')
-        return v
+        # Удаляем все нецифровые символы, оставляем только цифры и плюс в начале
+        cleaned = ''.join(c for c in v if c.isdigit() or (c == '+' and v.index(c) == 0))
+        # Проверяем длину после очистки (без учета плюса)
+        digits_only = cleaned.replace('+', '')
+        if len(digits_only) < 10:
+            raise ValueError('Phone number must contain at least 10 digits')
+        if not digits_only.isdigit():
+            raise ValueError('Phone number must contain only digits after removing formatting')
+        return cleaned
 
     @model_validator(mode="after")
     def check_password(self) -> Self:
