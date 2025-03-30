@@ -69,8 +69,6 @@ class SUserRegister(BaseModel):
     confirm_password: str = Field(min_length=5, max_length=50, description="Password confirmation")
     name: str = Field(min_length=2, max_length=50, description="Name from 2 to 50 characters")
     phone: str = Field(min_length=10, max_length=20, description="Phone number in any format")
-    direction_ids: List[int] = Field(description="List of direction IDs")
-    language_ids: List[int] = Field(description="List of language IDs")
 
     @field_validator('phone')
     def validate_phone(cls, v):
@@ -140,3 +138,21 @@ class UserMeResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+class DirectionSelectionRequest(BaseModel):
+    direction_ids: List[int] = Field(description="Список ID направлений")
+
+
+class LanguageSelectionRequest(BaseModel):
+    language_ids: List[int] = Field(description="Список ID языков")
+
+
+class DirectionSelectionResponse(BaseModel):
+    message: str = Field(description="Сообщение об успешном выборе направлений")
+    selected_directions: List[DirectionSchema]
+
+
+class LanguageSelectionResponse(BaseModel):
+    message: str = Field(description="Сообщение об успешном выборе языков")
+    selected_languages: List[LanguageSchema]
