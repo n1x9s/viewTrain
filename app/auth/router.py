@@ -6,7 +6,11 @@ from app.auth.models import User
 from app.exceptions import UserAlreadyExistsException, IncorrectEmailOrPasswordException
 from app.auth.auth import authenticate_user, create_access_token
 from app.auth.dao import UsersDAO, DirectionsDAO, LanguagesDAO
-from app.auth.schemas import SUserRegisterSimple, SUserAuth, EmailModel, SUserAddDB, SUserInfo, SUserUpdate, UserMeResponse
+from app.auth.schemas import (
+    SUserRegisterSimple, SUserAuth, EmailModel, SUserAddDB, 
+    SUserInfo, SUserUpdate, UserMeResponse, DirectionSelectionRequest,
+    LanguageSelectionRequest, DirectionSelectionResponse, LanguageSelectionResponse
+)
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, delete
 from sqlalchemy.orm import selectinload
@@ -229,3 +233,89 @@ async def delete_account(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Error during account deletion"
         )
+
+
+@router.post("/directions/", response_model=DirectionSelectionResponse)
+@version(1)
+async def select_directions(
+    direction_data: DirectionSelectionRequest,
+    session: AsyncSession = TransactionSessionDep,
+    current_user: User = Depends(get_current_user)
+) -> DirectionSelectionResponse:
+    """
+    Выбор направлений для текущего пользователя.
+    """
+    try:
+        # Загружаем пользователя со всеми связями
+        stmt = select(User).where(User.id == current_user.id).options(
+            selectinload(User.directions),
+            selectinload(User.languages)
+        )
+        result = await session.execute(stmt)
+        user = result.scalar_one()
+        
+        # Загружаем выбранные направления
+        directions = await DirectionsDAO.find_by_ids(session=session, ids=direction_data.direction_ids)
+        if len(directions) != len(direction_data.direction_ids):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Одно или несколько выбранных направлений не существуют"
+            )
+        
+        # Обновляем направления пользователя
+        user.directions = directions
+        await session.commit()
+        
+        return DirectionSelectionResponse(
+            message="Направления успешно обновлены",
+            selected_directions=directions
+        )
+    except Exception as e:
+        await session.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Ошибка при обновлении направлений"
+        ) from e
+
+
+@router.post("/languages/", response_model=LanguageSelectionResponse)
+@version(1)
+async def select_languages(
+    language_data: LanguageSelectionRequest,
+    session: AsyncSession = TransactionSessionDep,
+    current_user: User = Depends(get_current_user)
+) -> LanguageSelectionResponse:
+    """
+    Выбор языков программирования для текущего пользователя.
+    """
+    try:
+        # Загружаем пользователя со всеми связями
+        stmt = select(User).where(User.id == current_user.id).options(
+            selectinload(User.directions),
+            selectinload(User.languages)
+        )
+        result = await session.execute(stmt)
+        user = result.scalar_one()
+        
+        # Загружаем выбранные языки
+        languages = await LanguagesDAO.find_by_ids(session=session, ids=language_data.language_ids)
+        if len(languages) != len(language_data.language_ids):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Один или несколько выбранных языков не существуют"
+            )
+        
+        # Обновляем языки пользователя
+        user.languages = languages
+        await session.commit()
+        
+        return LanguageSelectionResponse(
+            message="Языки программирования успешно обновлены",
+            selected_languages=languages
+        )
+    except Exception as e:
+        await session.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Ошибка при обновлении языков программирования"
+        ) from e
