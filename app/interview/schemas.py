@@ -10,13 +10,13 @@ class InterviewStart(BaseModel):
 
 
 class QuestionResponse(BaseModel):
-    question_id: float = Field(description="ID вопроса")
+    question_id: int = Field(description="ID вопроса")
     question_text: str = Field(description="Текст вопроса")
     tag: Optional[str] = Field(None, description="Тег или категория вопроса")
 
 
 class AnswerRequest(BaseModel):
-    question_id: float = Field(description="ID вопроса")
+    question_id: int = Field(description="ID вопроса")
     user_answer: str = Field(description="Ответ пользователя")
 
 
@@ -61,7 +61,7 @@ class Question(QuestionBase):
 
 
 class UserAnswerBase(BaseModel):
-    question_id: float = Field(description="ID вопроса")
+    question_id: int = Field(description="ID вопроса")
     user_answer: str = Field(description="Ответ пользователя")
     
     model_config = ConfigDict(from_attributes=True)

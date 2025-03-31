@@ -13,7 +13,7 @@ class InterviewStatus(str, enum.Enum):
 class Question(Base):
     __tablename__ = 'pythonn'  # Используем существующую таблицу с вопросами
 
-    id = Column(Float, primary_key=True, index=True)  # double precision
+    id = Column(Integer, primary_key=True, index=True)  # Изменено с Float на Integer
     chance = Column(Float, nullable=True)  # double precision
     question = Column(Text, nullable=False)  # Текст вопроса
     tag = Column(Text, nullable=True)  # Тег или категория вопроса
@@ -46,7 +46,7 @@ class UserAnswer(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     interview_id = Column(Integer, ForeignKey('interviews.id'), nullable=False)
-    question_id = Column(Float, ForeignKey('pythonn.id'), nullable=False)  # Обновлено для соответствия типу в Question
+    question_id = Column(Integer, ForeignKey('pythonn.id'), nullable=False)  # Изменено с Float на Integer
     user_answer = Column(Text, nullable=False)
     score = Column(Float, nullable=True)
     feedback = Column(Text, nullable=True)
