@@ -32,16 +32,6 @@ logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
 
-# Добавляем middleware для CORS
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],  # Разрешаем все источники
-    allow_credentials=True,
-    allow_methods=["*"],  # Разрешаем все методы
-    allow_headers=["*"],  # Разрешаем все заголовки
-)
-
-
 @app.get("/")
 @version(1)
 async def root():
