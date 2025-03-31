@@ -3,11 +3,11 @@ Description=ViewTrain FastAPI Application
 After=network.target
 
 [Service]
-User=ubuntu
-Group=ubuntu
-WorkingDirectory=/home/ubuntu/viewTrain
-Environment="PATH=/home/ubuntu/viewTrain/.venv/bin"
-ExecStart=/home/ubuntu/viewTrain/.venv/bin/gunicorn -c gunicorn_config.py app.main:app
+User=n1x9s
+Group=n1x9s
+WorkingDirectory=/home/n1x9s/viewTrain
+Environment="PATH=/home/n1x9s/viewTrain/.venv/bin"
+ExecStart=/home/n1x9s/viewTrain/.venv/bin/gunicorn -c gunicorn_config.py app.main:app
 Restart=always
 
 [Install]
