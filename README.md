@@ -146,3 +146,4 @@ black .
 ```bash
 alembic revision --autogenerate -m "description"
 ```
+
