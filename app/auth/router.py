@@ -31,7 +31,7 @@ class UserUpdateData(BaseModel):
 
 
 @router.post("/register")
-async def register_user(user_data: SUserRegisterSimple, session: AsyncSession = SessionDep):
+async def register_user(user_data: SUserRegisterSimple, response: Response, session: AsyncSession = SessionDep):
     logger.info(f"Registering new user with data: {user_data.model_dump()}")
     
     try:
@@ -41,11 +41,17 @@ async def register_user(user_data: SUserRegisterSimple, session: AsyncSession = 
             filters=EmailModel(email=user_data.email)
         )
         if existing_user:
-            logger.warning(f"User with email {user_data.email} already exists")
-            raise HTTPException(
-                status_code=400,
-                detail="Email already registered"
-            )
+            logger.info(f"User with email {user_data.email} already exists, attempting authentication")
+            # Проверяем пароль
+            if not existing_user.verify_password(user_data.password):
+                logger.warning(f"Invalid password for existing user: {user_data.email}")
+                raise IncorrectEmailOrPasswordException
+            
+            # Создаем токен и устанавливаем cookie
+            access_token = create_access_token({"sub": str(existing_user.id)})
+            response.set_cookie(key="users_access_token", value=access_token, httponly=True)
+            logger.info(f"Successfully authenticated existing user: {user_data.email}")
+            return {'ok': True, 'access_token': access_token, 'message': 'User already exists, successfully logged in!'}
 
         # Создаем нового пользователя
         new_user = User(
@@ -61,8 +67,12 @@ async def register_user(user_data: SUserRegisterSimple, session: AsyncSession = 
         await UsersDAO.add(session, new_user)
         await session.commit()
         
+        # Создаем токен и устанавливаем cookie для нового пользователя
+        access_token = create_access_token({"sub": str(new_user.id)})
+        response.set_cookie(key="users_access_token", value=access_token, httponly=True)
+        
         logger.info(f"User successfully registered: {new_user}")
-        return {"message": "User registered successfully"}
+        return {'ok': True, 'access_token': access_token, 'message': 'User registered successfully'}
 
     except Exception as e:
         logger.error(f"Error during user registration: {e}", exc_info=True)
