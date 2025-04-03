@@ -114,7 +114,7 @@ async def get_question(
     # Получаем ID вопросов, на которые уже ответили
     answered_question_ids = await UserAnswerDAO.get_answered_question_ids(session, interview_id)
     
-    # Находим вопросы, на которые еще не ответили
+    # Находим вопросы, на которые еще не ответили 
     unanswered_question_ids = [qid for qid in selected_question_ids if qid not in answered_question_ids]
     
     if not unanswered_question_ids:
