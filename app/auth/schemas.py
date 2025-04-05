@@ -156,3 +156,15 @@ class DirectionSelectionResponse(BaseModel):
 class LanguageSelectionResponse(BaseModel):
     message: str = Field(description="Сообщение об успешном выборе языков")
     selected_languages: List[LanguageSchema]
+
+
+class EmailCheckRequest(EmailModel):
+    """Схема для проверки наличия email в системе"""
+    pass
+
+
+class EmailCheckResponse(BaseModel):
+    """Ответ на проверку email"""
+    exists: bool = Field(description="Существует ли пользователь с таким email")
+    next_action: str = Field(description="Следующее действие: login или register")
+    message: str = Field(description="Сообщение для пользователя")
