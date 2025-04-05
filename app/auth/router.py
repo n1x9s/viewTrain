@@ -9,7 +9,8 @@ from app.auth.dao import UsersDAO, DirectionsDAO, LanguagesDAO
 from app.auth.schemas import (
     SUserRegisterSimple, SUserAuth, EmailModel, SUserAddDB, 
     SUserInfo, SUserUpdate, UserMeResponse, DirectionSelectionRequest,
-    LanguageSelectionRequest, DirectionSelectionResponse, LanguageSelectionResponse
+    LanguageSelectionRequest, DirectionSelectionResponse, LanguageSelectionResponse,
+    EmailCheckRequest, EmailCheckResponse
 )
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, delete
@@ -329,3 +330,33 @@ async def select_languages(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Ошибка при обновлении языков программирования"
         ) from e
+
+
+@router.post("/check-email/", response_model=EmailCheckResponse)
+@version(1)
+async def check_email(email_data: EmailCheckRequest, session: AsyncSession = SessionDep):
+    """
+    Проверяет существование пользователя с указанным email.
+    Возвращает информацию о следующем шаге: логин или регистрация.
+    """
+    logger.info(f"Проверка существования email: {email_data.email}")
+    
+    existing_user = await UsersDAO.find_one_or_none(
+        session=session,
+        filters=EmailModel(email=email_data.email)
+    )
+    
+    if existing_user:
+        logger.info(f"Email {email_data.email} уже зарегистрирован")
+        return EmailCheckResponse(
+            exists=True,
+            next_action="login",
+            message="Пользователь с таким email уже существует. Перейдите к входу."
+        )
+    else:
+        logger.info(f"Email {email_data.email} не найден, требуется регистрация")
+        return EmailCheckResponse(
+            exists=False,
+            next_action="register",
+            message="Пользователь с таким email не найден. Пожалуйста, зарегистрируйтесь."
+        )
