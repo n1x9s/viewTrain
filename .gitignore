@@ -3,3 +3,5 @@
 .env
 .env*
 .cursorrules
+__pycache__/
+*.pyc
