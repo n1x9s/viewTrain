@@ -360,3 +360,4 @@ async def check_email(email_data: EmailCheckRequest, session: AsyncSession = Ses
             next_action="register",
             message="Пользователь с таким email не найден. Пожалуйста, зарегистрируйтесь."
         )
+
