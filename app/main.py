@@ -10,7 +10,6 @@ __   _(_) _____      _|_   _| __ __ _(_)_ __
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.responses import HTMLResponse
-import asyncio
 import logging
 
 from app.auth.router import router as router_auth
