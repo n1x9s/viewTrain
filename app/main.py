@@ -25,7 +25,7 @@ from fastapi_versioning import VersionedFastAPI, version
 
 app = FastAPI(title="Interview Training API")
 
-# Настройка логирования
+# Настройка логирования 
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
