@@ -4,4 +4,4 @@
 .env*
 .cursorrules
 __pycache__/
-*.pyc
+*.pyc__pycache__/
