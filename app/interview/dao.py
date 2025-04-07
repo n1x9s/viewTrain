@@ -131,6 +131,5 @@ class UserAnswerDAO(BaseDAO):
         gigachat_service = GigaChatService()
         return await gigachat_service.evaluate_answer(
             question=question.question,
-            correct_answer=question.answer,
             user_answer=user_answer
         ) 
