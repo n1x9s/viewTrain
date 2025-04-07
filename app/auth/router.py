@@ -228,7 +228,7 @@ async def delete_account(
                 delete(Interview).where(Interview.user_id == user.id)
             )
         
-        # Очищаем связи
+        # Очищаем связи 
         user.directions.clear()
         user.languages.clear()
         
