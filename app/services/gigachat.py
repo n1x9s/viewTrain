@@ -139,8 +139,14 @@ class GigaChatService:
             feedback = f"{evaluation['feedback']}\n\n"
             feedback += "Сильные стороны:\n" + "\n".join(f"- {s}" for s in evaluation['strengths']) + "\n\n"
             feedback += "Что нужно улучшить:\n" + "\n".join(f"- {w}" for w in evaluation['weaknesses']) + "\n\n"
+
             feedback += "Рекомендации:\n" + "\n".join(f"- {r}" for r in evaluation['recommendations']) + "\n\n"
+
             feedback += "Правильный ответ:\n" + evaluation['correct_answer']
+
+            feedback += "Правильный ответ:\n" + correct_answer
+            feedback += "Рекомендации:\n" + "\n".join(f"- {r}" for r in evaluation['recommendations'])
+
             
             return evaluation["score"], feedback
             
