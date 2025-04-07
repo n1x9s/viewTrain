@@ -113,13 +113,26 @@ class GigaChatService:
                 logger.error("Получен пустой ответ от GigaChat")
                 return 0.0, "Не удалось оценить ответ. Пожалуйста, попробуйте еще раз."
             
-            # Очищаем ответ от markdown-форматирования
+            # Очищаем ответ от markdown-форматирования и лишнего текста
             result = result.strip()
-            if result.startswith("```json"):
-                result = result[7:]  # Удаляем ```json
-            if result.endswith("```"):
-                result = result[:-3]  # Удаляем ```
-            result = result.strip()
+            
+            # Удаляем весь текст до первого {
+            start_idx = result.find('{')
+            if start_idx != -1:
+                result = result[start_idx:]
+            
+            # Удаляем весь текст после последнего }
+            end_idx = result.rfind('}')
+            if end_idx != -1:
+                result = result[:end_idx + 1]
+            
+            # Удаляем markdown-форматирование
+            result = result.replace('```json', '').replace('```', '').strip()
+            
+            # Проверяем, что у нас есть валидный JSON
+            if not result.startswith('{') or not result.endswith('}'):
+                logger.error(f"Некорректный формат JSON от GigaChat: {result}")
+                return 0.0, "Не удалось обработать ответ. Пожалуйста, попробуйте еще раз."
             
             # Парсим JSON из ответа
             import json
@@ -139,14 +152,8 @@ class GigaChatService:
             feedback = f"{evaluation['feedback']}\n\n"
             feedback += "Сильные стороны:\n" + "\n".join(f"- {s}" for s in evaluation['strengths']) + "\n\n"
             feedback += "Что нужно улучшить:\n" + "\n".join(f"- {w}" for w in evaluation['weaknesses']) + "\n\n"
-
             feedback += "Рекомендации:\n" + "\n".join(f"- {r}" for r in evaluation['recommendations']) + "\n\n"
-
-            feedback += "Правильный ответ:\n" + evaluation['correct_answer']
-
-            feedback += "Правильный ответ:\n" + correct_answer
-            feedback += "Рекомендации:\n" + "\n".join(f"- {r}" for r in evaluation['recommendations'])
-
+            feedback += "Правильный ответ:\n" + str(evaluation['correct_answer'])
             
             return evaluation["score"], feedback
             
