@@ -150,10 +150,11 @@ class GigaChatService:
             
             # Формируем полный фидбэк
             feedback = f"{evaluation['feedback']}\n\n"
-            feedback += "Сильные стороны:\n" + "\n".join(f"- {s}" for s in evaluation['strengths']) + "\n\n"
-            feedback += "Что нужно улучшить:\n" + "\n".join(f"- {w}" for w in evaluation['weaknesses']) + "\n\n"
-            feedback += "Рекомендации:\n" + "\n".join(f"- {r}" for r in evaluation['recommendations']) + "\n\n"
-            feedback += "Правильный ответ:\n" + str(evaluation['correct_answer'])
+            feedback += "**Оценка:**\n" + str(evaluation['score']) + "\n\n"
+            feedback += "**Сильные стороны:**\n" + "\n".join(f"- {s}" for s in evaluation['strengths']) + "\n\n"
+            feedback += "**Что нужно улучшить:**\n" + "\n".join(f"- {w}" for w in evaluation['weaknesses']) + "\n\n"
+            feedback += "**Рекомендации:**\n" + "\n".join(f"- {r}" for r in evaluation['recommendations']) + "\n\n"
+            feedback += "**Правильный ответ:**\n" + str(evaluation['correct_answer'])
             
             return evaluation["score"], feedback
             
