@@ -28,6 +28,11 @@ class GigaChatService:
             if not user_answer or user_answer.strip() == "":
                 return 0.0, "Вы не предоставили ответ на вопрос. Пожалуйста, попробуйте ответить еще раз."
             
+            # Проверяем ответы типа "не знаю"
+            not_know_phrases = ["не знаю", "не помню", "не уверен", "затрудняюсь ответить", "не могу ответить"]
+            if any(phrase in user_answer.lower() for phrase in not_know_phrases):
+                return 0.0, f"Правильный ответ:\n{correct_answer}"
+            
             prompt = f"""
             Ты - строгий экзаменатор по Python. Оцени ответ пользователя на вопрос интервью.
             
@@ -110,6 +115,9 @@ class GigaChatService:
             feedback = f"{evaluation['feedback']}\n\n"
             feedback += "Сильные стороны:\n" + "\n".join(f"- {s}" for s in evaluation['strengths']) + "\n\n"
             feedback += "Что нужно улучшить:\n" + "\n".join(f"- {w}" for w in evaluation['weaknesses']) + "\n\n"
+
+            feedback += "Рекомендации:\n" + "\n".join(f"- {r}" for r in evaluation['recommendations']) + "\n\n"
+            feedback += "Правильный ответ:\n" + correct_answer
             feedback += "Рекомендации:\n" + "\n".join(f"- {r}" for r in evaluation['recommendations'])
             
             return evaluation["score"], feedback
