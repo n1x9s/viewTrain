@@ -11,13 +11,12 @@ class GigaChatService:
             verify_ssl_certs=False  # Отключаем проверку SSL-сертификата
         )
     
-    async def evaluate_answer(self, question: str, correct_answer: str, user_answer: str) -> tuple[float, str]:
+    async def evaluate_answer(self, question: str, user_answer: str) -> tuple[float, str]:
         """
         Оценить ответ пользователя с помощью GigaChat
         
         Args:
             question: Текст вопроса
-            correct_answer: Правильный ответ
             user_answer: Ответ пользователя
             
         Returns:
@@ -31,14 +30,34 @@ class GigaChatService:
             # Проверяем ответы типа "не знаю"
             not_know_phrases = ["не знаю", "не помню", "не уверен", "затрудняюсь ответить", "не могу ответить"]
             if any(phrase in user_answer.lower() for phrase in not_know_phrases):
+                # Генерируем правильный ответ
+                correct_answer_prompt = f"""
+                Ты - опытный Python-разработчик и интервьюер. 
+                Дай развернутый и правильный ответ на следующий вопрос интервью:
+                
+                Вопрос: {question}
+                
+                Требования к ответу:
+                1. Ответ должен быть полным и точным
+                2. Используй профессиональную терминологию
+                3. Приведи примеры кода, если это уместно
+                4. Объясни сложные концепции простым языком
+                5. Укажи практическое применение
+                6. Не добавляй дату и источник
+                7. Давай только чистый текст без дополнительных метаданных
+                """
+                
+                correct_answer_response = self.client.chat(correct_answer_prompt)
+                correct_answer = correct_answer_response.choices[0].message.content
                 return 0.0, f"Правильный ответ:\n{correct_answer}"
             
             prompt = f"""
             Ты - строгий экзаменатор по Python. Оцени ответ пользователя на вопрос интервью.
             
             Вопрос: {question}
-            Правильный ответ: {correct_answer}
             Ответ пользователя: {user_answer}
+            
+            Сначала сгенерируй правильный ответ на вопрос, а затем оцени ответ пользователя.
             
             Критерии оценки:
             1. Если ответ пустой или не содержит полезной информации - оценка 0
@@ -70,7 +89,8 @@ class GigaChatService:
                 "weaknesses": [
                     "слабые стороны ответа",
                     "что нужно улучшить"
-                ]
+                ],
+                "correct_answer": "развернутый правильный ответ на вопрос"
             }}
             
             Важно:
@@ -110,7 +130,8 @@ class GigaChatService:
                 return 0.0, "Не удалось обработать ответ. Пожалуйста, попробуйте еще раз."
             
             # Проверяем наличие необходимых полей
-            if not all(key in evaluation for key in ["score", "feedback", "recommendations", "strengths", "weaknesses"]):
+            required_fields = ["score", "feedback", "recommendations", "strengths", "weaknesses", "correct_answer"]
+            if not all(key in evaluation for key in required_fields):
                 logger.error(f"Некорректный формат ответа от GigaChat: {evaluation}")
                 return 0.0, "Не удалось оценить ответ. Пожалуйста, попробуйте еще раз."
             
@@ -120,8 +141,12 @@ class GigaChatService:
             feedback += "Что нужно улучшить:\n" + "\n".join(f"- {w}" for w in evaluation['weaknesses']) + "\n\n"
 
             feedback += "Рекомендации:\n" + "\n".join(f"- {r}" for r in evaluation['recommendations']) + "\n\n"
+
+            feedback += "Правильный ответ:\n" + evaluation['correct_answer']
+
             feedback += "Правильный ответ:\n" + correct_answer
             feedback += "Рекомендации:\n" + "\n".join(f"- {r}" for r in evaluation['recommendations'])
+
             
             return evaluation["score"], feedback
             
