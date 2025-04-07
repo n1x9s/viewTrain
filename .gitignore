@@ -1,7 +1,7 @@
 /tables
-*.env
-.env
-.env*
+# *.env
+# .env
+# .env*
 .cursorrules
 __pycache__/
 *.pyc__pycache__/
