@@ -18,4 +18,3 @@ class DirectionsDAO(BaseDAO):
 
 class LanguagesDAO(BaseDAO):
     model = Language
-

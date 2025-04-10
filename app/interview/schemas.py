@@ -24,8 +24,12 @@ class AnswerResponse(BaseModel):
     score: float = Field(description="Оценка ответа")
     feedback: str = Field(description="Обратная связь по ответу")
     interview_completed: bool = Field(description="Флаг завершения интервью")
-    final_score: Optional[float] = Field(None, description="Итоговая оценка интервью (если завершено)")
-    final_feedback: Optional[str] = Field(None, description="Итоговая обратная связь по интервью (если завершено)")
+    final_score: Optional[float] = Field(
+        None, description="Итоговая оценка интервью (если завершено)"
+    )
+    final_feedback: Optional[str] = Field(
+        None, description="Итоговая обратная связь по интервью (если завершено)"
+    )
 
 
 class InterviewStatus(BaseModel):
@@ -44,9 +48,11 @@ class InterviewFinish(BaseModel):
 class QuestionBase(BaseModel):
     question: str = Field(description="Текст вопроса")
     answer: str = Field(description="Правильный ответ")
-    chance: Optional[float] = Field(None, description="Вероятность или сложность вопроса")
+    chance: Optional[float] = Field(
+        None, description="Вероятность или сложность вопроса"
+    )
     tag: Optional[str] = Field(None, description="Тег или категория вопроса")
-    
+
     model_config = ConfigDict(from_attributes=True)
 
 
@@ -56,14 +62,14 @@ class QuestionCreate(QuestionBase):
 
 class Question(QuestionBase):
     id: float = Field(description="ID вопроса")
-    
+
     model_config = ConfigDict(from_attributes=True)
 
 
 class UserAnswerBase(BaseModel):
     question_id: int = Field(description="ID вопроса")
     user_answer: str = Field(description="Ответ пользователя")
-    
+
     model_config = ConfigDict(from_attributes=True)
 
 
@@ -76,14 +82,14 @@ class UserAnswer(UserAnswerBase):
     interview_id: int = Field(description="ID интервью")
     score: Optional[float] = Field(None, description="Оценка ответа")
     feedback: Optional[str] = Field(None, description="Обратная связь по ответу")
-    
+
     model_config = ConfigDict(from_attributes=True)
 
 
 class InterviewBase(BaseModel):
     user_id: int = Field(description="ID пользователя")
     status: str = Field(description="Статус интервью")
-    
+
     model_config = ConfigDict(from_attributes=True)
 
 
@@ -95,17 +101,20 @@ class Interview(InterviewBase):
     id: int = Field(description="ID интервью")
     total_score: Optional[float] = Field(None, description="Итоговая оценка")
     feedback: Optional[str] = Field(None, description="Обратная связь по интервью")
-    answers: List[UserAnswer] = Field(default_factory=list, description="Ответы пользователя")
-    
+    answers: List[UserAnswer] = Field(
+        default_factory=list, description="Ответы пользователя"
+    )
+
     model_config = ConfigDict(from_attributes=True)
 
 
 class QuestionListResponse(BaseModel):
     """Ответ с пагинацией списка вопросов"""
+
     items: List[Question] = Field(description="Список вопросов")
     total: int = Field(description="Общее количество вопросов")
     page: int = Field(description="Текущая страница")
     pages: int = Field(description="Общее количество страниц")
     limit: int = Field(description="Количество вопросов на странице")
-    
+
     model_config = ConfigDict(from_attributes=True)

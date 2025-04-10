@@ -10,7 +10,7 @@ from fastapi_versioning import version
 
 from app.dao.session_maker import TransactionSessionDep, SessionDep
 
-router = APIRouter(prefix='/languages', tags=['Languages'])
+router = APIRouter(prefix="/languages", tags=["Languages"])
 
 
 class IdModel(BaseModel):
@@ -27,26 +27,24 @@ async def get_languages(session: AsyncSession = SessionDep):
 @router.post("/", response_model=LanguageSchema)
 @version(1)
 async def create_language(
-    language_data: LanguageCreate,
-    session: AsyncSession = TransactionSessionDep
+    language_data: LanguageCreate, session: AsyncSession = TransactionSessionDep
 ) -> Language:
     """Создание нового языка программирования"""
     # Проверяем, существует ли язык с таким именем
     existing = await LanguagesDAO.find_one_or_none(
-        session=session,
-        filters=LanguageCreate(name=language_data.name)
+        session=session, filters=LanguageCreate(name=language_data.name)
     )
     if existing:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Language with this name already exists"
+            detail="Language with this name already exists",
         )
 
     # Создаем новый язык
     new_language = Language(name=language_data.name)
     await LanguagesDAO.add(session=session, obj=new_language)
     await session.commit()
-    
+
     return new_language
 
 
@@ -55,17 +53,19 @@ async def create_language(
 async def delete_language(
     language_id: int,
     session: AsyncSession = TransactionSessionDep,
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ):
     # Проверяем, существует ли язык
-    language = await LanguagesDAO.find_one_or_none_by_id(data_id=language_id, session=session)
+    language = await LanguagesDAO.find_one_or_none_by_id(
+        data_id=language_id, session=session
+    )
     if not language:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Language with ID {language_id} not found"
+            detail=f"Language with ID {language_id} not found",
         )
-    
+
     # Удаляем язык
     await LanguagesDAO.delete(session=session, obj=language)
     await session.commit()
-    return Response(status_code=status.HTTP_204_NO_CONTENT) 
+    return Response(status_code=status.HTTP_204_NO_CONTENT)

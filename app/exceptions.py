@@ -1,25 +1,33 @@
 from fastapi import status, HTTPException
 
+
 class UserAlreadyExistsException(HTTPException):
     def __init__(self):
         super().__init__(
-            status_code=status.HTTP_409_CONFLICT,
-            detail='Пользователь уже существует'
+            status_code=status.HTTP_409_CONFLICT, detail="Пользователь уже существует"
         )
 
-IncorrectEmailOrPasswordException = HTTPException(status_code=status.HTTP_401_UNAUTHORIZED,
-                                                  detail='Неверная почта или пароль')
 
-TokenExpiredException = HTTPException(status_code=status.HTTP_401_UNAUTHORIZED,
-                                      detail='Токен истек')
+IncorrectEmailOrPasswordException = HTTPException(
+    status_code=status.HTTP_401_UNAUTHORIZED, detail="Неверная почта или пароль"
+)
 
-TokenNoFound = HTTPException(status_code=status.HTTP_401_UNAUTHORIZED,
-                             detail='Токен истек')
+TokenExpiredException = HTTPException(
+    status_code=status.HTTP_401_UNAUTHORIZED, detail="Токен истек"
+)
 
-NoJwtException = HTTPException(status_code=status.HTTP_401_UNAUTHORIZED,
-                               detail='Токен не валидный!')
+TokenNoFound = HTTPException(
+    status_code=status.HTTP_401_UNAUTHORIZED, detail="Токен истек"
+)
 
-NoUserIdException = HTTPException(status_code=status.HTTP_401_UNAUTHORIZED,
-                                  detail='Не найден ID пользователя')
+NoJwtException = HTTPException(
+    status_code=status.HTTP_401_UNAUTHORIZED, detail="Токен не валидный!"
+)
 
-ForbiddenException = HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail='Недостаточно прав!')
+NoUserIdException = HTTPException(
+    status_code=status.HTTP_401_UNAUTHORIZED, detail="Не найден ID пользователя"
+)
+
+ForbiddenException = HTTPException(
+    status_code=status.HTTP_403_FORBIDDEN, detail="Недостаточно прав!"
+)
