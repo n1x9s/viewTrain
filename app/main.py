@@ -25,11 +25,11 @@ from fastapi_versioning import VersionedFastAPI, version
 
 app = FastAPI(title="Interview Training API")
 
-# Настройка логирования 
+# Настройка логирования
 logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
+
 
 @app.get("/")
 @version(1)
@@ -57,11 +57,13 @@ app.include_router(router_interview)
 app.include_router(router_history)
 
 # Применяем версионирование к приложению
-app = VersionedFastAPI(app,
-    version_format='{major}',
-    prefix_format='/api/v{major}',
-    description='Interview Training API',
-    enable_latest=True)
+app = VersionedFastAPI(
+    app,
+    version_format="{major}",
+    prefix_format="/api/v{major}",
+    description="Interview Training API",
+    enable_latest=True,
+)
 
 # Применяем CORS middleware после версионирования
 app.add_middleware(

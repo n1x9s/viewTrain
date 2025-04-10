@@ -10,7 +10,7 @@ from fastapi_versioning import version
 
 from app.dao.session_maker import TransactionSessionDep, SessionDep
 
-router = APIRouter(prefix='/directions', tags=['Directions'])
+router = APIRouter(prefix="/directions", tags=["Directions"])
 
 
 class IdModel(BaseModel):
@@ -27,26 +27,24 @@ async def get_directions(session: AsyncSession = SessionDep):
 @router.post("/", response_model=DirectionSchema)
 @version(1)
 async def create_direction(
-    direction_data: DirectionCreate,
-    session: AsyncSession = TransactionSessionDep
+    direction_data: DirectionCreate, session: AsyncSession = TransactionSessionDep
 ) -> Direction:
     """Создание нового направления"""
     # Проверяем, существует ли направление с таким именем
     existing = await DirectionsDAO.find_one_or_none(
-        session=session,
-        filters=DirectionCreate(name=direction_data.name)
+        session=session, filters=DirectionCreate(name=direction_data.name)
     )
     if existing:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Direction with this name already exists"
+            detail="Direction with this name already exists",
         )
 
     # Создаем новое направление
     new_direction = Direction(name=direction_data.name)
     await DirectionsDAO.add(session=session, obj=new_direction)
     await session.commit()
-    
+
     return new_direction
 
 
@@ -55,17 +53,19 @@ async def create_direction(
 async def delete_direction(
     direction_id: int,
     session: AsyncSession = TransactionSessionDep,
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ):
     # Проверяем, существует ли направление
-    direction = await DirectionsDAO.find_one_or_none_by_id(data_id=direction_id, session=session)
+    direction = await DirectionsDAO.find_one_or_none_by_id(
+        data_id=direction_id, session=session
+    )
     if not direction:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Direction with ID {direction_id} not found"
+            detail=f"Direction with ID {direction_id} not found",
         )
-    
+
     # Удаляем направление
     await DirectionsDAO.delete(session=session, obj=direction)
     await session.commit()
-    return Response(status_code=status.HTTP_204_NO_CONTENT) 
+    return Response(status_code=status.HTTP_204_NO_CONTENT)

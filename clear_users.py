@@ -2,6 +2,7 @@ import asyncio
 from sqlalchemy import text
 from app.dao.database import async_session_maker
 
+
 async def clear_users():
     async with async_session_maker() as session:
         # Сначала удаляем связи
@@ -12,5 +13,6 @@ async def clear_users():
         await session.commit()
         print("All users have been deleted")
 
+
 if __name__ == "__main__":
-    asyncio.run(clear_users()) 
+    asyncio.run(clear_users())
