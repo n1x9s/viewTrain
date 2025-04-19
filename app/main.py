@@ -16,10 +16,11 @@ from app.auth.router import router as router_auth
 from app.directions.router import router as router_directions
 from app.languages.router import router as router_languages
 from app.interview.router import router as router_interview
+from app.history.router import router as router_history
+from app.statistics.router import router as router_statistics
 from fastapi.staticfiles import StaticFiles
 from app.auth.init_data import init_data
 from app.dao.session_maker import get_async_session
-from app.history.router import router as router_history
 from app.dao.database import Base, engine
 from fastapi_versioning import VersionedFastAPI, version
 
@@ -55,6 +56,7 @@ app.include_router(router_directions)
 app.include_router(router_languages)
 app.include_router(router_interview)
 app.include_router(router_history)
+app.include_router(router_statistics)
 
 # Применяем версионирование к приложению
 app = VersionedFastAPI(
