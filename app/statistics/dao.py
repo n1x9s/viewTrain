@@ -173,4 +173,61 @@ class StatisticsDAO(BaseDAO):
                 "answer_count": q['answer_count']
             } 
             for q in questions
-        ] 
+        ]
+        
+    @classmethod
+    async def get_all_questions(cls, session: AsyncSession, tag: Optional[str] = None) -> List[Dict[str, Any]]:
+        """
+        Получить список всех вопросов
+        
+        Args:
+            session: Сессия БД
+            tag: Опциональный фильтр по тегу вопроса
+        
+        Returns:
+            Список вопросов с ID и текстом
+        """
+        query = select(Question.id, Question.question, Question.tag)
+        
+        if tag:
+            query = query.where(Question.tag == tag)
+            
+        query = query.order_by(Question.id)
+        
+        result = await session.execute(query)
+        questions = result.all()
+        
+        return [
+            {
+                "id": q.id,
+                "question": q.question,
+                "tag": q.tag
+            }
+            for q in questions
+        ]
+    
+    @classmethod
+    async def get_question_by_id(cls, session: AsyncSession, question_id: int) -> Optional[Dict[str, Any]]:
+        """
+        Получить детальную информацию о вопросе по его ID
+        
+        Args:
+            session: Сессия БД
+            question_id: ID вопроса
+            
+        Returns:
+            Словарь с информацией о вопросе или None, если вопрос не найден
+        """
+        query = select(Question).where(Question.id == question_id)
+        result = await session.execute(query)
+        question = result.scalar_one_or_none()
+        
+        if not question:
+            return None
+            
+        return {
+            "id": question.id,
+            "question": question.question,
+            "tag": question.tag,
+            "answer": question.answer
+        } 

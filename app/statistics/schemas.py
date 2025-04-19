@@ -1,5 +1,5 @@
 from pydantic import BaseModel, Field
-from typing import List, Dict
+from typing import List, Dict, Optional
 
 
 class InterviewStatistics(BaseModel):
@@ -21,11 +21,23 @@ class QuestionStatItem(BaseModel):
     """Статистика по конкретному вопросу"""
     question_id: int = Field(..., description="ID вопроса")
     question_text: str = Field(..., description="Текст вопроса")
-    tag: str = Field(None, description="Тег/категория вопроса")
+    tag: Optional[str] = Field(None, description="Тег/категория вопроса")
     success_rate: float = Field(..., description="Процент успешных ответов")
     answer_count: int = Field(..., description="Количество ответов на вопрос")
 
 
 class TopQuestionsStatistics(BaseModel):
     """Топ-5 вопросов по успешности/неуспешности"""
-    questions: List[QuestionStatItem] = Field(..., description="Список вопросов с статистикой") 
+    questions: List[QuestionStatItem] = Field(..., description="Список вопросов с статистикой")
+
+
+class QuestionBase(BaseModel):
+    """Базовая модель вопроса"""
+    id: int = Field(..., description="ID вопроса")
+    question: str = Field(..., description="Текст вопроса")
+    tag: Optional[str] = Field(None, description="Тег/категория вопроса")
+
+
+class QuestionDetail(QuestionBase):
+    """Детальная модель вопроса с ответом"""
+    answer: str = Field(..., description="Правильный ответ на вопрос") 

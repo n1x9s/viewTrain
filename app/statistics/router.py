@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
-from typing import List
+from typing import List, Optional
 
 from app.auth.dependencies import get_current_user
 from app.auth.models import User
@@ -10,7 +10,9 @@ from app.statistics.schemas import (
     InterviewStatistics,
     QuestionsStatistics,
     TopQuestionsStatistics,
-    QuestionStatItem
+    QuestionStatItem,
+    QuestionBase,
+    QuestionDetail
 )
 from fastapi_versioning import version
 
@@ -83,4 +85,44 @@ async def get_top_unsuccessful_questions(
     чаще всего давал неправильные ответы.
     """
     questions = await StatisticsDAO.get_top_unsuccessful_questions(session, current_user.id)
-    return TopQuestionsStatistics(questions=[QuestionStatItem(**q) for q in questions]) 
+    return TopQuestionsStatistics(questions=[QuestionStatItem(**q) for q in questions])
+
+
+@router.get("/questions/all", response_model=List[QuestionBase])
+@version(1)
+async def get_all_questions(
+    tag: Optional[str] = None,
+    current_user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_async_session),
+):
+    """
+    Получить список всех вопросов из базы данных.
+    
+    Параметры:
+    - tag: Опциональный фильтр по тегу вопроса
+    
+    Возвращает список вопросов с ID и текстом.
+    """
+    questions = await StatisticsDAO.get_all_questions(session, tag)
+    return [QuestionBase(**q) for q in questions]
+
+
+@router.get("/questions/{question_id}", response_model=QuestionDetail)
+@version(1)
+async def get_question_detail(
+    question_id: int,
+    current_user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_async_session),
+):
+    """
+    Получить детальную информацию о вопросе по его ID.
+    
+    Возвращает вопрос с ID, текстом вопроса и правильным ответом.
+    """
+    question = await StatisticsDAO.get_question_by_id(session, question_id)
+    if not question:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Вопрос с ID {question_id} не найден"
+        )
+    return QuestionDetail(**question) 
