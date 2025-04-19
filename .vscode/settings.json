@@ -9,6 +9,16 @@
             "database": "interviewtraining",
             "username": "postgres",
             "password": "15931"
+        },
+        {
+            "previewLimit": 50,
+            "server": "176.109.99.216",
+            "port": 5432,
+            "driver": "PostgreSQL",
+            "name": "Server",
+            "database": "viewtrain",
+            "username": "n1x9s",
+            "password": "15931"
         }
     ]
 }
