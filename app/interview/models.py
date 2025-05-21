@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Float, ForeignKey, Text, Enum, DateTime
+from sqlalchemy import Column, Integer, String, Float, ForeignKey, Text, Enum, DateTime, and_
 from sqlalchemy.orm import relationship
 from app.dao.database import Base
 import enum
@@ -10,17 +10,26 @@ class InterviewStatus(str, enum.Enum):
     COMPLETED = "completed"
 
 
-class Question(Base):
-    __tablename__ = "pythonn"  # Используем существующую таблицу с вопросами
-
-    id = Column(Integer, primary_key=True, index=True)  # Изменено с Float на Integer
+class PythonQuestion(Base):
+    """Модель для вопросов по Python"""
+    __tablename__ = "pythonn"
+    
+    id = Column(Integer, primary_key=True, index=True)
     chance = Column(Float, nullable=True)  # double precision
     question = Column(Text, nullable=False)  # Текст вопроса
     tag = Column(Text, nullable=True)  # Тег или категория вопроса
     answer = Column(Text, nullable=False)  # Правильный ответ
 
-    # Связь с ответами пользователей
-    user_answers = relationship("UserAnswer", back_populates="question")
+
+class GolangQuestion(Base):
+    """Модель для вопросов по Go"""
+    __tablename__ = "golangquestions"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    chance = Column(Float, nullable=True)  # double precision
+    question = Column(Text, nullable=False)  # Текст вопроса
+    tag = Column(Text, nullable=True)  # Тег или категория вопроса
+    answer = Column(Text, nullable=False)  # Правильный ответ
 
 
 class Interview(Base):
@@ -34,6 +43,9 @@ class Interview(Base):
     question_ids = Column(
         Text, nullable=True
     )  # Для хранения списка ID выбранных вопросов
+    question_type = Column(
+        String, nullable=False, default="pythonn"
+    )  # Тип вопросов (pythonn или golangquestions)
     user_interview_id = Column(
         Integer, nullable=True
     )  # ID интервью для конкретного пользователя
@@ -52,13 +64,31 @@ class UserAnswer(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     interview_id = Column(Integer, ForeignKey("interviews.id"), nullable=False)
-    question_id = Column(
-        Integer, ForeignKey("pythonn.id"), nullable=False
-    )  # Изменено с Float на Integer
+    question_id = Column(Integer, nullable=False)  # ID вопроса
+    question_type = Column(String, nullable=False, default="pythonn")  # Тип вопроса (pythonn или golangquestions)
     user_answer = Column(Text, nullable=False)
     score = Column(Float, nullable=True)
     feedback = Column(Text, nullable=True)
 
-    # Связи с другими таблицами
+    # Связь с интервью
     interview = relationship("Interview", back_populates="answers")
-    question = relationship("Question", back_populates="user_answers")
+    
+    async def get_question(self, session):
+        """
+        Получить связанный вопрос в зависимости от типа
+        
+        Args:
+            session: Сессия БД
+            
+        Returns:
+            Объект вопроса (PythonQuestion или GolangQuestion)
+        """
+        from sqlalchemy.future import select
+        
+        if self.question_type == "pythonn":
+            query = select(PythonQuestion).filter(PythonQuestion.id == self.question_id)
+        else:
+            query = select(GolangQuestion).filter(GolangQuestion.id == self.question_id)
+            
+        result = await session.execute(query)
+        return result.scalar_one_or_none()

@@ -1,10 +1,11 @@
 from app.dao.base import BaseDAO
-from app.interview.models import Interview, UserAnswer, Question
+from app.interview.models import Interview, UserAnswer, PythonQuestion, GolangQuestion
 from sqlalchemy.future import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import func, case, Float, and_, text
-from sqlalchemy.orm import selectinload
+from sqlalchemy import func, case, Float, and_, literal_column, text, union_all
+from sqlalchemy.orm import selectinload, aliased
 from typing import List, Dict, Tuple, Any, Optional
+from sqlalchemy.sql.expression import select as select_expr
 
 
 class StatisticsDAO(BaseDAO):
@@ -123,6 +124,7 @@ class StatisticsDAO(BaseDAO):
         # Подзапрос для получения статистики по каждому вопросу
         subquery = select(
             UserAnswer.question_id,
+            UserAnswer.question_type,
             func.count(UserAnswer.id).label('answer_count'),
             func.avg(
                 case(
@@ -136,27 +138,60 @@ class StatisticsDAO(BaseDAO):
             Interview.user_id == user_id,
             Interview.status == "completed"
         ).group_by(
-            UserAnswer.question_id
+            UserAnswer.question_id,
+            UserAnswer.question_type
         ).having(
             func.count(UserAnswer.id) > 0
         ).subquery()
         
-        # Запрос для получения полной информации о вопросах
-        query = select(
-            Question.id.label('question_id'),
-            Question.question.label('question_text'),
-            Question.tag,
+        # Запрос для получения полной информации о вопросах Python
+        python_query = select(
+            PythonQuestion.id.label('question_id'),
+            PythonQuestion.question.label('question_text'),
+            PythonQuestion.tag,
             subquery.c.success_rate,
-            subquery.c.answer_count
+            subquery.c.answer_count,
+            literal_column("'pythonn'").label('question_type')
         ).join(
-            subquery, Question.id == subquery.c.question_id
+            subquery, and_(
+                PythonQuestion.id == subquery.c.question_id,
+                subquery.c.question_type == 'pythonn'
+            )
+        )
+        
+        # Запрос для получения полной информации о вопросах Golang
+        golang_query = select(
+            GolangQuestion.id.label('question_id'),
+            GolangQuestion.question.label('question_text'),
+            GolangQuestion.tag,
+            subquery.c.success_rate,
+            subquery.c.answer_count,
+            literal_column("'golangquestions'").label('question_type')
+        ).join(
+            subquery, and_(
+                GolangQuestion.id == subquery.c.question_id,
+                subquery.c.question_type == 'golangquestions'
+            )
+        )
+        
+        # Объединяем запросы
+        union_query = union_all(python_query, golang_query).alias()
+        
+        # Создаем финальный запрос с сортировкой
+        query = select(
+            union_query.c.question_id,
+            union_query.c.question_text,
+            union_query.c.tag,
+            union_query.c.success_rate,
+            union_query.c.answer_count,
+            union_query.c.question_type
         )
         
         # Сортировка в зависимости от того, ищем ли успешные или неуспешные вопросы
         if is_successful:
-            query = query.order_by(subquery.c.success_rate.desc())
+            query = query.order_by(union_query.c.success_rate.desc())
         else:
-            query = query.order_by(subquery.c.success_rate.asc())
+            query = query.order_by(union_query.c.success_rate.asc())
         
         query = query.limit(limit)
         
@@ -170,7 +205,8 @@ class StatisticsDAO(BaseDAO):
                 "question_text": q['question_text'],
                 "tag": q['tag'],
                 "success_rate": round(float(q['success_rate']) * 100, 2),
-                "answer_count": q['answer_count']
+                "answer_count": q['answer_count'],
+                "question_type": q['question_type']
             } 
             for q in questions
         ]
@@ -187,12 +223,38 @@ class StatisticsDAO(BaseDAO):
         Returns:
             Список вопросов с ID и текстом
         """
-        query = select(Question.id, Question.question, Question.tag)
+        # Запрос для Python вопросов
+        python_query = select(
+            PythonQuestion.id,
+            PythonQuestion.question,
+            PythonQuestion.tag,
+            literal_column("'pythonn'").label('question_type')
+        )
         
         if tag:
-            query = query.where(Question.tag == tag)
+            python_query = python_query.where(PythonQuestion.tag == tag)
             
-        query = query.order_by(Question.id)
+        # Запрос для Golang вопросов
+        golang_query = select(
+            GolangQuestion.id,
+            GolangQuestion.question,
+            GolangQuestion.tag,
+            literal_column("'golangquestions'").label('question_type')
+        )
+        
+        if tag:
+            golang_query = golang_query.where(GolangQuestion.tag == tag)
+            
+        # Объединяем запросы
+        union_query = union_all(python_query, golang_query).alias()
+        
+        # Финальный запрос с сортировкой
+        query = select(
+            union_query.c.id,
+            union_query.c.question,
+            union_query.c.tag,
+            union_query.c.question_type
+        ).order_by(union_query.c.id)
         
         result = await session.execute(query)
         questions = result.all()
@@ -201,24 +263,30 @@ class StatisticsDAO(BaseDAO):
             {
                 "id": q.id,
                 "question": q.question,
-                "tag": q.tag
+                "tag": q.tag,
+                "question_type": q.question_type
             }
             for q in questions
         ]
     
     @classmethod
-    async def get_question_by_id(cls, session: AsyncSession, question_id: int) -> Optional[Dict[str, Any]]:
+    async def get_question_by_id(cls, session: AsyncSession, question_id: int, question_type: str = 'pythonn') -> Optional[Dict[str, Any]]:
         """
         Получить детальную информацию о вопросе по его ID
         
         Args:
             session: Сессия БД
             question_id: ID вопроса
+            question_type: Тип вопроса ('pythonn' или 'golangquestions')
             
         Returns:
             Словарь с информацией о вопросе или None, если вопрос не найден
         """
-        query = select(Question).where(Question.id == question_id)
+        if question_type == 'pythonn':
+            query = select(PythonQuestion).where(PythonQuestion.id == question_id)
+        else:
+            query = select(GolangQuestion).where(GolangQuestion.id == question_id)
+            
         result = await session.execute(query)
         question = result.scalar_one_or_none()
         
@@ -229,5 +297,6 @@ class StatisticsDAO(BaseDAO):
             "id": question.id,
             "question": question.question,
             "tag": question.tag,
-            "answer": question.answer
+            "answer": question.answer,
+            "question_type": question_type
         } 

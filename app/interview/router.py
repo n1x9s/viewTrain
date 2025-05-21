@@ -23,7 +23,7 @@ from app.auth.models import User
 import logging
 from sqlalchemy import text
 import random
-from typing import Optional
+from typing import Optional, List
 from fastapi_versioning import version
 
 logger = logging.getLogger(__name__)
@@ -48,19 +48,25 @@ async def start_interview(
     )
     user_interview_count = query.scalar_one() + 1  # Новый ID интервью для пользователя
 
+    # Определяем тип вопросов в зависимости от языка и направления пользователя
+    question_type = QuestionDAO.get_question_type_for_user(current_user)
+
     # Создаем новое интервью
     new_interview = Interview(
         user_id=current_user.id,
         status=InterviewStatusEnum.ONGOING,
         user_interview_id=user_interview_count,  # Добавляем ID интервью для пользователя
+        question_type=question_type,  # Сохраняем тип вопросов
     )
 
     # Добавляем в базу данных
     session.add(new_interview)
     await session.flush()
 
-    # Получаем все вопросы
-    query = await session.execute(text("SELECT id FROM pythonn"))
+    # Получаем все вопросы соответствующего типа
+    query = await session.execute(
+        text(f"SELECT id FROM {question_type}")
+    )
     all_question_ids = query.scalars().all()
 
     # Выбираем 10 случайных вопросов, если их больше 10
@@ -94,7 +100,7 @@ async def get_question(
     # Находим активное интервью пользователя
     query = await session.execute(
         text(
-            "SELECT id, question_ids, user_interview_id FROM interviews WHERE user_id = :user_id AND status = :status ORDER BY id DESC LIMIT 1"
+            "SELECT id, question_ids, user_interview_id, question_type FROM interviews WHERE user_id = :user_id AND status = :status ORDER BY id DESC LIMIT 1"
         ),
         {"user_id": current_user.id, "status": InterviewStatusEnum.ONGOING},
     )
@@ -106,14 +112,17 @@ async def get_question(
             detail="Активное интервью не найдено. Начните новое интервью.",
         )
 
-    interview_id, question_ids, user_interview_id = result
+    interview_id, question_ids, user_interview_id, question_type = result
 
     # Получаем ID вопросов, выбранных для этого интервью
     if question_ids:
-        selected_question_ids = list(map(float, question_ids.split(",")))
+        # Convert to int by first parsing as float for values like "295.0"
+        selected_question_ids = [int(float(id_str)) for id_str in question_ids.split(",")]
     else:
-        # Если question_ids пуста, получаем все вопросы
-        query = await session.execute(text("SELECT id FROM pythonn"))
+        # Если question_ids пуста, получаем все вопросы соответствующего типа
+        query = await session.execute(
+            text(f"SELECT id FROM {question_type}")
+        )
         all_question_ids = query.scalars().all()
 
         # Выбираем 10 случайных вопросов, если их больше 10
@@ -156,8 +165,10 @@ async def get_question(
     # Выбираем случайный вопрос из оставшихся
     random_question_id = random.choice(unanswered_question_ids)
 
-    # Получаем вопрос
-    question = await QuestionDAO.find_one_or_none_by_id(random_question_id, session)
+    # Получаем вопрос соответствующего типа
+    question = await QuestionDAO.find_one_or_none_by_id(
+        random_question_id, session, question_type=question_type
+    )
 
     if not question:
         raise HTTPException(status_code=404, detail="Вопрос не найден")
@@ -178,7 +189,7 @@ async def submit_answer(
     # Находим активное интервью пользователя
     query = await session.execute(
         text(
-            "SELECT id, question_ids, user_interview_id FROM interviews WHERE user_id = :user_id AND status = :status ORDER BY id DESC LIMIT 1"
+            "SELECT id, question_ids, user_interview_id, question_type FROM interviews WHERE user_id = :user_id AND status = :status ORDER BY id DESC LIMIT 1"
         ),
         {"user_id": current_user.id, "status": InterviewStatusEnum.ONGOING},
     )
@@ -190,18 +201,18 @@ async def submit_answer(
             detail="Активное интервью не найдено. Начните новое интервью.",
         )
 
-    interview_id, question_ids, user_interview_id = result
+    interview_id, question_ids, user_interview_id, question_type = result
 
     # Проверяем, что вопрос существует
     question = await QuestionDAO.find_one_or_none_by_id(
-        answer_data.question_id, session
+        answer_data.question_id, session, question_type=question_type
     )
     if not question:
         raise HTTPException(status_code=404, detail="Вопрос не найден")
 
     # Проверяем, что вопрос входит в выбранные для этого интервью
     if question_ids:
-        selected_question_ids = list(map(float, question_ids.split(",")))
+        selected_question_ids = list(map(int, question_ids.split(",")))
         if answer_data.question_id not in selected_question_ids:
             raise HTTPException(
                 status_code=400, detail="Этот вопрос не входит в текущее интервью"
@@ -209,7 +220,10 @@ async def submit_answer(
 
     # Проверяем, не отвечал ли пользователь уже на этот вопрос
     existing_answer = await UserAnswerDAO.find_one_or_none(
-        session, interview_id=interview_id, question_id=answer_data.question_id
+        session, 
+        interview_id=interview_id, 
+        question_id=answer_data.question_id,
+        question_type=question_type
     )
 
     if existing_answer:
@@ -224,6 +238,7 @@ async def submit_answer(
     user_answer = UserAnswer(
         interview_id=interview_id,
         question_id=answer_data.question_id,
+        question_type=question_type,
         user_answer=answer_data.user_answer,
         score=score,
         feedback=feedback,
@@ -388,6 +403,7 @@ async def get_all_questions(
     page: int = Query(1, ge=1, description="Номер страницы"),
     limit: int = Query(50, ge=1, le=100, description="Количество вопросов на странице"),
     tag: Optional[str] = Query(None, description="Фильтр по тегу вопроса"),
+    question_type: Optional[str] = Query(None, description="Тип вопросов (pythonn или golangquestions)"),
     current_user: User = Depends(get_current_user),
     session: AsyncSession = SessionDep,
 ):
@@ -397,12 +413,17 @@ async def get_all_questions(
     - **page**: Номер страницы (начиная с 1)
     - **limit**: Максимальное количество вопросов на странице
     - **tag**: Опциональный фильтр по тегу вопроса
+    - **question_type**: Опциональный тип вопросов (если не указан, определяется по языку и направлению пользователя)
     """
     # Вычисляем значение skip на основе номера страницы
     skip = (page - 1) * limit
+    
+    # Если тип вопросов не указан, определяем его на основе языка и направления пользователя
+    if not question_type:
+        question_type = QuestionDAO.get_question_type_for_user(current_user)
 
     questions, total = await QuestionDAO.get_all_questions(
-        session=session, skip=skip, limit=limit, tag=tag
+        session=session, skip=skip, limit=limit, tag=tag, question_type=question_type
     )
 
     # Вычисляем общее количество страниц

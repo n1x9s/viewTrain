@@ -24,6 +24,7 @@ class QuestionStatItem(BaseModel):
     tag: Optional[str] = Field(None, description="Тег/категория вопроса")
     success_rate: float = Field(..., description="Процент успешных ответов")
     answer_count: int = Field(..., description="Количество ответов на вопрос")
+    question_type: str = Field(..., description="Тип вопроса (pythonn или golangquestions)")
 
 
 class TopQuestionsStatistics(BaseModel):
@@ -36,6 +37,7 @@ class QuestionBase(BaseModel):
     id: int = Field(..., description="ID вопроса")
     question: str = Field(..., description="Текст вопроса")
     tag: Optional[str] = Field(None, description="Тег/категория вопроса")
+    question_type: str = Field(..., description="Тип вопроса (pythonn или golangquestions)")
 
 
 class QuestionDetail(QuestionBase):
