@@ -21,7 +21,6 @@ router = APIRouter(prefix="/statistics", tags=["statistics"])
 
 
 @router.get("/interviews", response_model=InterviewStatistics)
-@version(1)
 async def get_interview_statistics(
     current_user: User = Depends(get_current_user),
     session: AsyncSession = SessionDep,
@@ -39,7 +38,6 @@ async def get_interview_statistics(
 
 
 @router.get("/questions", response_model=QuestionsStatistics)
-@version(1)
 async def get_questions_statistics(
     current_user: User = Depends(get_current_user),
     session: AsyncSession = SessionDep,
@@ -58,7 +56,6 @@ async def get_questions_statistics(
 
 
 @router.get("/questions/top-successful", response_model=TopQuestionsStatistics)
-@version(1)
 async def get_top_successful_questions(
     current_user: User = Depends(get_current_user),
     session: AsyncSession = SessionDep,
@@ -74,7 +71,6 @@ async def get_top_successful_questions(
 
 
 @router.get("/questions/top-unsuccessful", response_model=TopQuestionsStatistics)
-@version(1)
 async def get_top_unsuccessful_questions(
     current_user: User = Depends(get_current_user),
     session: AsyncSession = SessionDep,
@@ -90,7 +86,6 @@ async def get_top_unsuccessful_questions(
 
 
 @router.get("/questions/all", response_model=List[QuestionBase])
-@version(1)
 async def get_all_questions(
     tag: Optional[str] = None,
     question_type: Optional[str] = Query(None, description="Тип вопросов: pythonn или golangquestions"),
@@ -123,7 +118,6 @@ async def get_all_questions(
 
 
 @router.get("/questions/{question_id}", response_model=QuestionDetail)
-@version(1)
 async def get_question_detail(
     question_id: int,
     question_type: str = Query("pythonn", description="Тип вопросов: pythonn или golangquestions"),

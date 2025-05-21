@@ -18,14 +18,12 @@ class IdModel(BaseModel):
 
 
 @router.get("/", response_model=List[LanguageSchema])
-@version(1)
 async def get_languages(session: AsyncSession = SessionDep):
     languages = await LanguagesDAO.find_all(session=session, filters=None)
     return languages
 
 
 @router.post("/", response_model=LanguageSchema)
-@version(1)
 async def create_language(
     language_data: LanguageCreate, session: AsyncSession = TransactionSessionDep
 ) -> Language:
@@ -49,7 +47,6 @@ async def create_language(
 
 
 @router.delete("/{language_id}", status_code=status.HTTP_204_NO_CONTENT)
-@version(1)
 async def delete_language(
     language_id: int,
     session: AsyncSession = TransactionSessionDep,

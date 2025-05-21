@@ -16,7 +16,6 @@ router = APIRouter(prefix="/history", tags=["history"])
 
 
 @router.get("", response_model=InterviewHistoryList)
-@version(1)
 async def get_interview_history(
     current_user: User = Depends(get_current_user), session: AsyncSession = SessionDep
 ):
@@ -38,7 +37,6 @@ async def get_interview_history(
 
 
 @router.get("/{interview_id}", response_model=InterviewHistoryDetail)
-@version(1)
 async def get_interview_detail(
     interview_id: int,
     current_user: User = Depends(get_current_user),

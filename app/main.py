@@ -22,7 +22,6 @@ from fastapi.staticfiles import StaticFiles
 from app.auth.init_data import init_data
 from app.dao.session_maker import get_async_session
 from app.dao.database import Base, engine
-from fastapi_versioning import VersionedFastAPI, version
 
 app = FastAPI(title="Interview Training API")
 
@@ -33,9 +32,8 @@ logging.basicConfig(
 
 
 @app.get("/")
-@version(1)
 async def root():
-    return HTMLResponse("Cваггер <a href='/api/v1/docs'>тут</a>")
+    return HTMLResponse("Cваггер <a href='/docs'>тут</a>")
 
 
 @app.on_event("startup")
@@ -58,16 +56,7 @@ app.include_router(router_interview)
 app.include_router(router_history)
 app.include_router(router_statistics)
 
-# Применяем версионирование к приложению
-app = VersionedFastAPI(
-    app,
-    version_format="{major}",
-    prefix_format="/api/v{major}",
-    description="Interview Training API",
-    enable_latest=True,
-)
-
-# Применяем CORS middleware после версионирования
+# Применяем CORS middleware
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],

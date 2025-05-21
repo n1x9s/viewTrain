@@ -18,14 +18,12 @@ class IdModel(BaseModel):
 
 
 @router.get("/", response_model=List[DirectionSchema])
-@version(1)
 async def get_directions(session: AsyncSession = SessionDep):
     directions = await DirectionsDAO.find_all(session=session, filters=None)
     return directions
 
 
 @router.post("/", response_model=DirectionSchema)
-@version(1)
 async def create_direction(
     direction_data: DirectionCreate, session: AsyncSession = TransactionSessionDep
 ) -> Direction:
@@ -49,7 +47,6 @@ async def create_direction(
 
 
 @router.delete("/{direction_id}", status_code=status.HTTP_204_NO_CONTENT)
-@version(1)
 async def delete_direction(
     direction_id: int,
     session: AsyncSession = TransactionSessionDep,

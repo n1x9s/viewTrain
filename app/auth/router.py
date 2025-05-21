@@ -25,7 +25,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, delete
 from sqlalchemy.orm import selectinload
 from pydantic import BaseModel
-from fastapi_versioning import version
 
 from app.dao.session_maker import TransactionSessionDep, SessionDep
 
@@ -104,7 +103,6 @@ async def register_user(
 
 
 @router.post("/login/")
-@version(1)
 async def auth_user(
     response: Response, user_data: SUserAuth, session: AsyncSession = SessionDep
 ):
@@ -127,14 +125,12 @@ async def auth_user(
 
 
 @router.post("/logout/")
-@version(1)
 async def logout_user(response: Response):
     response.delete_cookie(key="users_access_token")
     return {"message": "Logout is successful!"}
 
 
 @router.get("/me/")
-@version(1)
 async def get_me(
     session: AsyncSession = SessionDep, current_user: User = Depends(get_current_user)
 ) -> UserMeResponse:
@@ -156,7 +152,6 @@ async def get_me(
 
 
 @router.put("/me/", response_model=SUserInfo)
-@version(1)
 async def update_me(
     user_data: UserUpdateData,
     session: AsyncSession = TransactionSessionDep,
@@ -223,7 +218,6 @@ async def update_me(
 
 
 @router.delete("/me/", status_code=status.HTTP_204_NO_CONTENT)
-@version(1)
 async def delete_account(
     session: AsyncSession = TransactionSessionDep,
     current_user: User = Depends(get_current_user),
@@ -277,7 +271,6 @@ async def delete_account(
 
 
 @router.post("/directions/", response_model=DirectionSelectionResponse)
-@version(1)
 async def select_directions(
     direction_data: DirectionSelectionRequest,
     session: AsyncSession = TransactionSessionDep,
@@ -322,7 +315,6 @@ async def select_directions(
 
 
 @router.post("/languages/", response_model=LanguageSelectionResponse)
-@version(1)
 async def select_languages(
     language_data: LanguageSelectionRequest,
     session: AsyncSession = TransactionSessionDep,
@@ -368,7 +360,6 @@ async def select_languages(
 
 
 @router.post("/check-email/", response_model=EmailCheckResponse)
-@version(1)
 async def check_email(
     email_data: EmailCheckRequest, session: AsyncSession = SessionDep
 ):
