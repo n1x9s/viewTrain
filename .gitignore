@@ -4,4 +4,6 @@
 # .env*
 .cursorrules
 __pycache__/
-*.pyc__pycache__/
+*.pyc
+**/__pycache__/
+*.py[cod]
