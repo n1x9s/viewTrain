@@ -39,7 +39,9 @@ async def get_current_user(
     if not user_id:
         raise NoUserIdException
 
-    user = await UsersDAO.find_user_with_relations(session=session, user_id=int(user_id))
+    user = await UsersDAO.find_user_with_relations(
+        session=session, user_id=int(user_id)
+    )
     if not user:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found"

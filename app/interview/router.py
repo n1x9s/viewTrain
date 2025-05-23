@@ -62,9 +62,7 @@ async def start_interview(
     await session.flush()
 
     # Получаем все вопросы соответствующего типа
-    query = await session.execute(
-        text(f"SELECT id FROM {question_type}")
-    )
+    query = await session.execute(text(f"SELECT id FROM {question_type}"))
     all_question_ids = query.scalars().all()
 
     # Выбираем 10 случайных вопросов, если их больше 10
@@ -114,12 +112,12 @@ async def get_question(
     # Получаем ID вопросов, выбранных для этого интервью
     if question_ids:
         # Convert to int by first parsing as float for values like "295.0"
-        selected_question_ids = [int(float(id_str)) for id_str in question_ids.split(",")]
+        selected_question_ids = [
+            int(float(id_str)) for id_str in question_ids.split(",")
+        ]
     else:
         # Если question_ids пуста, получаем все вопросы соответствующего типа
-        query = await session.execute(
-            text(f"SELECT id FROM {question_type}")
-        )
+        query = await session.execute(text(f"SELECT id FROM {question_type}"))
         all_question_ids = query.scalars().all()
 
         # Выбираем 10 случайных вопросов, если их больше 10
@@ -216,10 +214,10 @@ async def submit_answer(
 
     # Проверяем, не отвечал ли пользователь уже на этот вопрос
     existing_answer = await UserAnswerDAO.find_one_or_none(
-        session, 
-        interview_id=interview_id, 
+        session,
+        interview_id=interview_id,
         question_id=answer_data.question_id,
-        question_type=question_type
+        question_type=question_type,
     )
 
     if existing_answer:
@@ -396,7 +394,9 @@ async def get_all_questions(
     page: int = Query(1, ge=1, description="Номер страницы"),
     limit: int = Query(50, ge=1, le=100, description="Количество вопросов на странице"),
     tag: Optional[str] = Query(None, description="Фильтр по тегу вопроса"),
-    question_type: Optional[str] = Query(None, description="Тип вопросов (pythonn или golangquestions)"),
+    question_type: Optional[str] = Query(
+        None, description="Тип вопросов (pythonn или golangquestions)"
+    ),
     current_user: User = Depends(get_current_user),
     session: AsyncSession = SessionDep,
 ):
@@ -410,7 +410,7 @@ async def get_all_questions(
     """
     # Вычисляем значение skip на основе номера страницы
     skip = (page - 1) * limit
-    
+
     # Если тип вопросов не указан, определяем его на основе языка и направления пользователя
     if not question_type:
         question_type = QuestionDAO.get_question_type_for_user(current_user)

@@ -12,15 +12,14 @@ class UsersDAO(BaseDAO):
     async def add(cls, session: AsyncSession, obj: User) -> None:
         session.add(obj)
         await session.flush()
-        
+
     @classmethod
     async def find_user_with_relations(cls, session: AsyncSession, user_id: int):
         """Найти пользователя с загрузкой languages и directions"""
         query = (
             select(cls.model)
             .options(
-                selectinload(cls.model.languages),
-                selectinload(cls.model.directions)
+                selectinload(cls.model.languages), selectinload(cls.model.directions)
             )
             .filter_by(id=user_id)
         )
